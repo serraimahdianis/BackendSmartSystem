@@ -51,7 +51,7 @@ export class StudentService {
     updateStudentDto: UpdateStudentDto,
   ): Promise<Student> {
     const updatedStudent = await this.studentModel
-      .findByIdAndUpdate(id, updateStudentDto, { new: true })
+      .findByIdAndUpdate(id, updateStudentDto, { returnDocument: 'after' })
       .exec();
     if (!updatedStudent) {
       throw new NotFoundException(`Student with ID "${id}" not found`);

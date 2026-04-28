@@ -41,7 +41,7 @@ export class TeacherService {
     updateTeacherDto: UpdateTeacherDto,
   ): Promise<Teacher> {
     const updatedTeacher = await this.teacherModel
-      .findByIdAndUpdate(id, updateTeacherDto, { new: true })
+      .findByIdAndUpdate(id, updateTeacherDto, { returnDocument: 'after' })
       .exec();
     if (!updatedTeacher) {
       throw new NotFoundException(`Teacher with ID "${id}" not found`);

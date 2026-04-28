@@ -60,7 +60,7 @@ export class SessionService {
 
   async updateStatus(id: string, status: string): Promise<Session> {
     const updatedSession = await this.sessionModel
-      .findByIdAndUpdate(id, { status }, { new: true })
+      .findByIdAndUpdate(id, { status }, { returnDocument: 'after' })
       .exec();
     if (!updatedSession) {
       throw new NotFoundException(`Session with ID "${id}" not found`);
@@ -73,7 +73,7 @@ export class SessionService {
     updateSessionDto: UpdateSessionDto,
   ): Promise<Session> {
     const updatedSession = await this.sessionModel
-      .findByIdAndUpdate(id, updateSessionDto, { new: true })
+      .findByIdAndUpdate(id, updateSessionDto, { returnDocument: 'after' })
       .exec();
     if (!updatedSession) {
       throw new NotFoundException(`Session with ID "${id}" not found`);

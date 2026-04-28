@@ -48,7 +48,7 @@ export class ScheduleService {
     updateScheduleDto: UpdateScheduleDto,
   ): Promise<Schedule> {
     const updatedSchedule = await this.scheduleModel
-      .findByIdAndUpdate(id, updateScheduleDto, { new: true })
+      .findByIdAndUpdate(id, updateScheduleDto, { returnDocument: 'after' })
       .exec();
     if (!updatedSchedule) {
       throw new NotFoundException(`Schedule with ID "${id}" not found`);

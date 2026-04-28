@@ -47,7 +47,7 @@ export class ModuleService {
     updateModuleDto: UpdateModuleDto,
   ): Promise<AcademicModule> {
     const updatedModule = await this.moduleModel
-      .findByIdAndUpdate(id, updateModuleDto, { new: true })
+      .findByIdAndUpdate(id, updateModuleDto, { returnDocument: 'after' })
       .exec();
     if (!updatedModule) {
       throw new NotFoundException(`Module with ID "${id}" not found`);
