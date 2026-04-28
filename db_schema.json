@@ -1,0 +1,67 @@
+{
+  "Teacher": {
+    "_id": "ObjectId",
+    "fullName": "string",
+    "email": "string (@univ-setif.dz)",
+    "password": "string (hashed)",
+    "faceImage": "string (URL)",
+    "department": "string",
+    "createdAt": "date",
+    "updatedAt": "date"
+  },
+  "Student": {
+    "_id": "ObjectId",
+    "fullName": "string",
+    "email": "string",
+    "password": "string (hashed)",
+    "studentId": "string (e.g. ST1001)",
+    "rfidCode": "string",
+    "qrCode": "string",
+    "faceImage": "string (URL)",
+    "group": "string",
+    "year": "string",
+    "speciality": "string",
+    "createdAt": "date",
+    "updatedAt": "date"
+  },
+  "Module": {
+    "_id": "ObjectId",
+    "name": "string",
+    "teacherId": "ObjectId (ref Teacher)",
+    "year": "string",
+    "createdAt": "date"
+  },
+  "Schedule": {
+    "_id": "ObjectId",
+    "teacherId": "ObjectId (ref Teacher)",
+    "moduleId": "ObjectId (ref Module)",
+    "type": "string (cours | td | tp)",
+    "year": "string",
+    "group": "string",
+    "dayOfWeek": "string (e.g. Sunday)",
+    "startTime": "string (HH:MM)",
+    "endTime": "string (HH:MM)",
+    "room": "string"
+  },
+  "Session": {
+    "_id": "ObjectId",
+    "scheduleId": "ObjectId (ref Schedule, null if replacement)",
+    "teacherId": "ObjectId (ref Teacher)",
+    "moduleId": "ObjectId (ref Module)",
+    "date": "date",
+    "startTime": "string (HH:MM)",
+    "endTime": "string (HH:MM)",
+    "type": "string (cours | td | tp)",
+    "group": "string",
+    "status": "string (planned | active | closed)",
+    "isReplacement": "boolean",
+    "reasonForReplacement": "string"
+  },
+  "Attendance": {
+    "_id": "ObjectId",
+    "sessionId": "ObjectId (ref Session)",
+    "studentId": "ObjectId (ref Student)",
+    "status": "string (present | late | absent)",
+    "scanTime": "date"
+  }
+}
