@@ -39,6 +39,13 @@ src/
 └── main.ts                 # Entry point + Swagger
 ```
 
+### 🧪 Testing Structure
+```
+test/
+├── app.e2e-spec.ts         # Massive Real API End-to-End Test Suite
+└── jest-e2e.json           # Jest E2E configuration
+```
+
 ---
 
 ## Installation
@@ -59,6 +66,21 @@ npm run start:dev
 ```
 
 **Open Swagger:** http://localhost:3000/api
+
+---
+
+## Testing (End-to-End)
+
+The backend features a comprehensive E2E test suite that runs against a real MongoDB database and hits real API endpoints. It covers 9 continuous phases (Admin Auth, Teacher Registration & OTP via DB extraction, Student Auto-Hashing, CRUD, and RFID Simulations).
+
+```bash
+# 1. Start the API Server first
+npm run start:dev
+
+# 2. Run the full E2E Test Suite
+npm run test:e2e
+```
+*Note: The test suite strictly complies with the latest Mongoose updates and emits zero deprecation warnings (uses `{ returnDocument: 'after' }`)*
 
 ---
 
