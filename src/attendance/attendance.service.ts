@@ -35,7 +35,12 @@ export class AttendanceService {
   async findByStudent(studentId: string): Promise<Attendance[]> {
     return this.attendanceModel
       .find({ studentId: new Types.ObjectId(studentId) })
-      .populate('sessionId')
+      .populate({
+        path: 'sessionId',
+        populate: {
+          path: 'moduleId',
+        },
+      })
       .exec();
   }
 
