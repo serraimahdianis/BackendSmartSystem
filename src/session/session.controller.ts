@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -36,6 +37,34 @@ export class SessionController {
   @ApiResponse({ status: 201, description: 'Session created successfully' })
   create(@Body() createSessionDto: CreateSessionDto) {
     return this.sessionService.create(createSessionDto);
+  }
+
+  @Post('start/:scheduleId')
+  @Roles('teacher')
+  @ApiOperation({ summary: 'Manually start a session from a mapped schedule' })
+  @ApiResponse({
+    status: 201,
+    description: 'Active session started successfully',
+  })
+  @ApiResponse({ status: 409, description: 'Session already exists for today' })
+  startSession(
+    @Param('scheduleId') scheduleId: string,
+    @Request() req: { user: { userId: string } },
+  ) {
+    const teacherId = req.user.userId;
+    return this.sessionService.startSession(scheduleId, teacherId);
+  }
+
+  @Post(':id/end')
+  @Roles('teacher')
+  @ApiOperation({ summary: 'Manually end an active session' })
+  @ApiResponse({ status: 200, description: 'Session ended successfully' })
+  endSession(
+    @Param('id') id: string,
+    @Request() req: { user: { userId: string } },
+  ) {
+    const teacherId = req.user.userId;
+    return this.sessionService.endSession(id, teacherId);
   }
 
   @Get()

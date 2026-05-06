@@ -21,6 +21,9 @@ export class TeacherService {
   }
 
   async findOne(id: string): Promise<Teacher> {
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      throw new NotFoundException(`Teacher with ID "${id}" not found`);
+    }
     const teacher = await this.teacherModel.findById(id).exec();
     if (!teacher) {
       throw new NotFoundException(`Teacher with ID "${id}" not found`);
@@ -40,6 +43,9 @@ export class TeacherService {
     id: string,
     updateTeacherDto: UpdateTeacherDto,
   ): Promise<Teacher> {
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      throw new NotFoundException(`Teacher with ID "${id}" not found`);
+    }
     const updatedTeacher = await this.teacherModel
       .findByIdAndUpdate(id, updateTeacherDto, { returnDocument: 'after' })
       .exec();
@@ -50,6 +56,9 @@ export class TeacherService {
   }
 
   async remove(id: string): Promise<void> {
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      throw new NotFoundException(`Teacher with ID "${id}" not found`);
+    }
     const result = await this.teacherModel.findByIdAndDelete(id).exec();
     if (!result) {
       throw new NotFoundException(`Teacher with ID "${id}" not found`);

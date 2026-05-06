@@ -135,9 +135,11 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
     console.log('\n🧹 Cleaning up test data...');
     const db = mongoConnection?.connection.db;
     if (db) {
-      await db
-        .collection('attendances')
-        .deleteMany({ sessionId: new mongoose.Types.ObjectId(ctx.sessionId || '000000000000000000000000') });
+      await db.collection('attendances').deleteMany({
+        sessionId: new mongoose.Types.ObjectId(
+          ctx.sessionId || '000000000000000000000000',
+        ),
+      });
       if (ctx.sessionId)
         await db
           .collection('sessions')
@@ -150,12 +152,8 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
         await db
           .collection('modules')
           .deleteOne({ _id: new mongoose.Types.ObjectId(ctx.moduleId) });
-      await db
-        .collection('students')
-        .deleteOne({ studentId: STUDENT_ID });
-      await db
-        .collection('teachers')
-        .deleteOne({ email: TEACHER_EMAIL });
+      await db.collection('students').deleteOne({ studentId: STUDENT_ID });
+      await db.collection('teachers').deleteOne({ email: TEACHER_EMAIL });
       console.log('✅ Test data cleaned from database');
     }
     await disconnectDB();
@@ -404,7 +402,9 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
     it('should get the teacher ID for module creation', async () => {
       // Find our test teacher in the DB
       const db = mongoConnection?.connection.db;
-      const teacher = await db?.collection('teachers').findOne({ email: TEACHER_EMAIL });
+      const teacher = await db
+        ?.collection('teachers')
+        .findOne({ email: TEACHER_EMAIL });
       expect(teacher).toBeTruthy();
       ctx.teacherId = teacher!._id.toString();
       console.log('  🆔 Teacher ID:', ctx.teacherId);
@@ -598,7 +598,9 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
 
       expect(lookup.status).toBe(200);
       const scannedStudentId = lookup.data._id as string;
-      console.log(`  ✅ RFID matched student: ${lookup.data.fullName} (${lookup.data.studentId})`);
+      console.log(
+        `  ✅ RFID matched student: ${lookup.data.fullName as string} (${lookup.data.studentId as string})`,
+      );
 
       // Step 2: Record attendance for the active session
       const { status, data } = await api(
@@ -653,7 +655,11 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
         ctx.adminToken,
       );
 
-      console.log('  📋 Session attendance list:', status, Array.isArray(data) ? `${(data as unknown[]).length} records` : data);
+      console.log(
+        '  📋 Session attendance list:',
+        status,
+        Array.isArray(data) ? `${(data as unknown[]).length} records` : data,
+      );
 
       expect(status).toBe(200);
       expect(Array.isArray(data)).toBe(true);
@@ -667,7 +673,11 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
         ctx.adminToken,
       );
 
-      console.log('  📋 Student attendance history:', status, Array.isArray(data) ? `${(data as unknown[]).length} records` : data);
+      console.log(
+        '  📋 Student attendance history:',
+        status,
+        Array.isArray(data) ? `${(data as unknown[]).length} records` : data,
+      );
 
       expect(status).toBe(200);
       expect(Array.isArray(data)).toBe(true);

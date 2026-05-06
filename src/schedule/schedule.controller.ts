@@ -62,7 +62,7 @@ export class ScheduleController {
   }
 
   @Patch(':id')
-  @Roles('admin', 'teacher')
+  @Roles('admin')
   @ApiOperation({ summary: 'Update a schedule entry' })
   @ApiResponse({ status: 200, description: 'Schedule updated successfully' })
   @ApiResponse({ status: 404, description: 'Schedule not found' })
@@ -74,7 +74,7 @@ export class ScheduleController {
   }
 
   @Delete(':id')
-  @Roles('admin', 'teacher')
+  @Roles('admin')
   @ApiOperation({ summary: 'Delete a schedule entry' })
   @ApiResponse({ status: 200, description: 'Schedule deleted successfully' })
   @ApiResponse({ status: 404, description: 'Schedule not found' })

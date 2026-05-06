@@ -1,7 +1,13 @@
-import { connect, connection, Types } from 'mongoose';
+import { connect, connection } from 'mongoose';
 import * as dotenv from 'dotenv';
-import { TeacherSchema, TeacherDocument } from './teacher/schemas/teacher.schema';
-import { StudentSchema, StudentDocument } from './student/schemas/student.schema';
+import {
+  TeacherSchema,
+  TeacherDocument,
+} from './teacher/schemas/teacher.schema';
+import {
+  StudentSchema,
+  StudentDocument,
+} from './student/schemas/student.schema';
 import { AcademicModuleSchema } from './module/schemas/module.schema';
 import { ScheduleSchema } from './schedule/schemas/schedule.schema';
 import { SessionSchema } from './session/schemas/session.schema';
@@ -11,8 +17,13 @@ dotenv.config();
 
 const API_URL = 'http://localhost:3000';
 
-async function apiRequest(method: string, endpoint: string, body?: any, token?: string) {
-  const headers: any = {
+async function apiRequest<T = unknown>(
+  method: string,
+  endpoint: string,
+  body?: Record<string, unknown>,
+  token?: string,
+): Promise<T> {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   if (token) {
@@ -25,8 +36,8 @@ async function apiRequest(method: string, endpoint: string, body?: any, token?: 
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  let data;
   const text = await response.text();
+  let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
@@ -34,10 +45,24 @@ async function apiRequest(method: string, endpoint: string, body?: any, token?: 
   }
 
   if (!response.ok) {
-    throw new Error(`API Error [${method} ${endpoint}]: ${response.status} ${JSON.stringify(data)}`);
+    throw new Error(
+      `API Error [${method} ${endpoint}]: ${response.status} ${
+        typeof data === 'string' ? data : JSON.stringify(data)
+      }`,
+    );
   }
-  
-  return data;
+
+  return data as T;
+}
+
+interface AuthResponse {
+  access_token: string;
+}
+
+interface ItemResponse {
+  _id: string;
+  status?: string;
+  isReplacement?: boolean;
 }
 
 async function seed() {
@@ -50,8 +75,14 @@ async function seed() {
   console.log('🔌 Connecting to MongoDB...');
   await connect(uri);
 
-  const TeacherModel = connection.model<TeacherDocument>('Teacher', TeacherSchema);
-  const StudentModel = connection.model<StudentDocument>('Student', StudentSchema);
+  const TeacherModel = connection.model<TeacherDocument>(
+    'Teacher',
+    TeacherSchema,
+  );
+  const StudentModel = connection.model<StudentDocument>(
+    'Student',
+    StudentSchema,
+  );
   const ModuleModel = connection.model('AcademicModule', AcademicModuleSchema);
   const ScheduleModel = connection.model('Schedule', ScheduleSchema);
   const SessionModel = connection.model('Session', SessionSchema);
@@ -68,270 +99,357 @@ async function seed() {
   ]);
 
   console.log('🔑 Logging in as Admin...');
-  const adminLogin = await apiRequest('POST', '/auth/admin/login', {
-    email: 'admin@admin.com',
-    password: 'admin123'
-  });
+  const adminLogin = await apiRequest<AuthResponse>(
+    'POST',
+    '/auth/admin/login',
+    {
+      email: 'admin@admin.com',
+      password: 'admin123',
+    },
+  );
   const adminToken = adminLogin.access_token;
 
   // ─── STUDENTS ─────────────────────────────────────────────────────────────
-  console.log('👨‍🎓 Creating 10 Mock Students via API...');
+  console.log('👨‍🎓 Admin creating Mock Students...');
   const studentIds: string[] = [];
   const studentData = [
-    { fullName: 'Amine Khelifi', birthday: '15031999' },
-    { fullName: 'Sara Amrani', birthday: '22081999' },
-    { fullName: 'Youssef Benali', birthday: '05112000' },
-    { fullName: 'Nadia Zouaoui', birthday: '30062001' },
-    { fullName: 'Karim Hadj', birthday: '18012000' },
-    { fullName: 'Lina Boukhalfa', birthday: '09092001' },
-    { fullName: 'Omar Tlemcani', birthday: '27042000' },
-    { fullName: 'Rania Ferhat', birthday: '14122000' },
-    { fullName: 'Bilal Meziane', birthday: '02032001' },
-    { fullName: 'Amel Djoudi', birthday: '11072001' },
-  ];
-
-  for (let i = 0; i < 10; i++) {
-    const { fullName, birthday } = studentData[i];
-    const studentResponse = await apiRequest('POST', '/students', {
-      fullName,
-      email: `student${i + 1}@student.dz`,
-      birthday,
-      studentId: `ST100${i + 1}`,
-      rfidCode: `RFID-2A-${String(i + 1).padStart(3, '0')}`,
-      qrCode: `QR-2A-${String(i + 1).padStart(3, '0')}`,
+    {
+      fullName: 'SERRAI MAHDI ANIS',
+      birthday: '26062003',
+      email: 'm.serrai@univ-setif.dz',
+      studentId: '212135055186',
+      rfidCode: '0007637223',
+      group: '01',
+      year: 'M2',
+      speciality: 'IDTW',
+    },
+    {
+      fullName: 'Amine Khelifi',
+      birthday: '15031999',
+      email: 'student1@student.dz',
+      studentId: '1001',
+      rfidCode: 'RFID-2A-001',
       group: '2A',
       year: 'L2',
       speciality: 'Computer Science',
-    }, adminToken);
-    studentIds.push(studentResponse._id);
+    },
+    {
+      fullName: 'Sara Amrani',
+      birthday: '22081999',
+      email: 'student2@student.dz',
+      studentId: '1002',
+      rfidCode: 'RFID-2A-002',
+      group: '2A',
+      year: 'L2',
+      speciality: 'Computer Science',
+    },
+    {
+      fullName: 'Yacine Belkacem',
+      birthday: '10102002',
+      email: 'y.belkacem@student.dz',
+      studentId: '2001',
+      rfidCode: 'RFID-01-003',
+      group: '01',
+      year: 'M2',
+      speciality: 'IDTW',
+    },
+    {
+      fullName: 'Lina Mansouri',
+      birthday: '05052001',
+      email: 'l.mansouri@student.dz',
+      studentId: '2002',
+      rfidCode: 'RFID-01-004',
+      group: '01',
+      year: 'M2',
+      speciality: 'IDTW',
+    },
+    {
+      fullName: 'Karim Zeggai',
+      birthday: '12122000',
+      email: 'k.zeggai@student.dz',
+      studentId: '1003',
+      rfidCode: 'RFID-2A-003',
+      group: '2A',
+      year: 'L2',
+      speciality: 'Computer Science',
+    },
+    {
+      fullName: 'Nour El Houda',
+      birthday: '01012004',
+      email: 'n.houda@student.dz',
+      studentId: '2003',
+      rfidCode: 'RFID-01-005',
+      group: '01',
+      year: 'M2',
+      speciality: 'IDTW',
+    },
+  ];
+
+  const studentObjIds: string[] = [];
+  for (let i = 0; i < studentData.length; i++) {
+    const s = studentData[i];
+    const studentResponse = await apiRequest<ItemResponse>(
+      'POST',
+      '/students',
+      {
+        fullName: s.fullName,
+        email: s.email,
+        birthday: s.birthday,
+        studentId: s.studentId,
+        rfidCode: s.rfidCode,
+        qrCode: `QR-${s.group}-${String(i + 1).padStart(3, '0')}`,
+        group: s.group,
+        year: s.year,
+        speciality: s.speciality,
+      },
+      adminToken,
+    );
+    studentObjIds.push(studentResponse._id);
   }
 
-  // ─── TEACHER ──────────────────────────────────────────────────────────────
-  console.log('👨‍🏫 Registering Test Teacher via API...');
-  const testEmail = 't.test@univ-setif.dz';
-  const testPassword = 'password123';
-  await apiRequest('POST', '/auth/teacher/register', {
-    fullName: 'Dr. Test Teacher',
-    email: testEmail,
-    password: testPassword,
-    department: 'Computer Science',
-  });
+  // ─── TEACHERS ────────────────────────────────────────────────────────────
+  console.log('👨‍🏫 Registering Teachers...');
 
-  console.log('🔍 Fetching OTP from Database...');
-  const teacherDoc = await TeacherModel.findOne({ email: testEmail }).select('+otp').exec();
-  if (!teacherDoc || !teacherDoc.otp) {
-    throw new Error('Failed to retrieve OTP from database');
+  const teachers = [
+    {
+      fullName: 'Prof. Dr. Amine Khelifi',
+      email: 'a.khelifi@univ-setif.dz',
+      department: 'Computer Science',
+    },
+    {
+      fullName: 'Prof. Dr. Ahmed Bouzid',
+      email: 'ahmed.bouzid@gmail.com',
+      department: 'Software Engineering',
+    },
+    {
+      fullName: 'Dr. Mohamed Larbi',
+      email: 'm.larbi@univ-setif.dz',
+      department: 'Mathematics',
+    },
+  ];
+
+  const teacherTokens: string[] = [];
+  const teacherIds: string[] = [];
+
+  for (const t of teachers) {
+    console.log(`📝 Registering ${t.fullName}...`);
+    await apiRequest<unknown>('POST', '/auth/teacher/register', {
+      ...t,
+      password: 'password123',
+    });
+
+    console.log(`🔍 Fetching OTP for ${t.email}...`);
+    const doc = await TeacherModel.findOne({ email: t.email })
+      .select('+otp')
+      .exec();
+    if (!doc || !doc.otp) throw new Error(`OTP not found for ${t.email}`);
+
+    console.log(`✅ Verifying OTP ${doc.otp} for ${t.email}...`);
+    const verifyRes = await apiRequest<AuthResponse>(
+      'POST',
+      '/auth/teacher/verify-otp',
+      {
+        email: t.email,
+        otp: doc.otp,
+      },
+    );
+    teacherTokens.push(verifyRes.access_token);
+
+    const payload = JSON.parse(
+      Buffer.from(verifyRes.access_token.split('.')[1], 'base64').toString(),
+    ) as { sub: string };
+    teacherIds.push(payload.sub);
   }
-
-  console.log(`✅ Verifying OTP (${teacherDoc.otp})...`);
-  const verifyRes = await apiRequest('POST', '/auth/teacher/verify-otp', {
-    email: testEmail,
-    otp: teacherDoc.otp,
-  });
-
-  console.log('🔑 Extracting Teacher ID from Token...');
-  const teacherToken = verifyRes.access_token;
-  const tokenPayload = JSON.parse(Buffer.from(teacherToken.split('.')[1], 'base64').toString());
-  const teacherId = tokenPayload.sub;
 
   // ─── MODULES ──────────────────────────────────────────────────────────────
-  console.log('📚 Creating Modules via API...');
-  const webModule = await apiRequest('POST', '/modules', {
-    name: 'Web Development',
-    teacherId,
-    year: 'L2',
-  }, teacherToken);
+  console.log('📚 Creating Modules...');
+  const modulesData = [
+    { name: 'Web Development', teacherId: teacherIds[0], year: 'L2' },
+    { name: 'Database Systems', teacherId: teacherIds[0], year: 'L2' },
+    { name: 'Mobile Development', teacherId: teacherIds[1], year: 'M2' },
+    { name: 'Deep Learning', teacherId: teacherIds[1], year: 'M2' },
+    { name: 'Advanced Calculus', teacherId: teacherIds[2], year: 'L2' },
+  ];
 
-  const mobileModule = await apiRequest('POST', '/modules', {
-    name: 'Mobile Development',
-    teacherId,
-    year: 'L2',
-  }, teacherToken);
+  const moduleObjIds: string[] = [];
+  for (let i = 0; i < modulesData.length; i++) {
+    const m = modulesData[i];
+    const tIndex = teacherIds.indexOf(m.teacherId);
+    const res = await apiRequest<ItemResponse>(
+      'POST',
+      '/modules',
+      m,
+      teacherTokens[tIndex],
+    );
+    moduleObjIds.push(res._id);
+  }
 
-  // ─── SCHEDULES ────────────────────────────────────────────────────────────
-  console.log('📅 Creating Schedules via API...');
-  const webCours = await apiRequest('POST', '/schedules', {
-    teacherId,
-    moduleId: webModule._id,
-    type: 'cours',
-    year: 'L2',
-    group: 'Whole Year',
-    dayOfWeek: 'Sunday',
-    startTime: '08:00',
-    endTime: '09:30',
-    room: 'Amphi A',
-  }, teacherToken);
-
-  const webTd = await apiRequest('POST', '/schedules', {
-    teacherId,
-    moduleId: webModule._id,
-    type: 'td',
-    year: 'L2',
-    group: '2A',
-    dayOfWeek: 'Sunday',
-    startTime: '09:45',
-    endTime: '11:15',
-    room: 'Room 101',
-  }, teacherToken);
-
-  await apiRequest('POST', '/schedules', {
-    teacherId,
-    moduleId: mobileModule._id,
-    type: 'td',
-    year: 'L2',
-    group: '2A',
-    dayOfWeek: 'Monday',
-    startTime: '13:00',
-    endTime: '14:30',
-    room: 'Room 204',
-  }, teacherToken);
-
-  await apiRequest('POST', '/schedules', {
-    teacherId,
-    moduleId: mobileModule._id,
-    type: 'tp',
-    year: 'L2',
-    group: '2A',
-    dayOfWeek: 'Wednesday',
-    startTime: '10:00',
-    endTime: '11:30',
-    room: 'Lab 02',
-  }, teacherToken);
-
-  // ─── SESSIONS ─────────────────────────────────────────────────────────────
-  console.log('⏱️  Creating Sessions via API...');
+  // ─── SCHEDULE ────────────────────────────────────────────────────────────
+  console.log('📅 Creating Schedules...');
   const today = new Date();
-  const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
-  const twoDaysAgo = new Date(); twoDaysAgo.setDate(today.getDate() - 2);
-  const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1);
-  const dayAfter = new Date(); dayAfter.setDate(today.getDate() + 2);
+  const days = [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+  ];
+  const todayDayName = days[today.getDay()];
 
+  const schedulesData = [
+    {
+      teacherId: teacherIds[0],
+      moduleId: moduleObjIds[0],
+      type: 'cours',
+      year: 'L2',
+      group: 'Whole Year',
+      dayOfWeek: todayDayName,
+      startTime: '08:00',
+      endTime: '09:30',
+      room: 'Amphi A',
+    },
+    {
+      teacherId: teacherIds[1],
+      moduleId: moduleObjIds[2],
+      type: 'td',
+      year: 'M2',
+      group: '01',
+      dayOfWeek: todayDayName,
+      startTime: '10:00',
+      endTime: '11:30',
+      room: 'Lab 05',
+    },
+    {
+      teacherId: teacherIds[2],
+      moduleId: moduleObjIds[4],
+      type: 'cours',
+      year: 'L2',
+      group: 'Whole Year',
+      dayOfWeek: todayDayName,
+      startTime: '13:00',
+      endTime: '14:30',
+      room: 'Amphi B',
+    },
+  ];
+
+  const scheduleObjIds: string[] = [];
+  for (const s of schedulesData) {
+    const tIndex = teacherIds.indexOf(s.teacherId);
+    const res = await apiRequest<ItemResponse>(
+      'POST',
+      '/schedules',
+      s,
+      teacherTokens[tIndex],
+    );
+    scheduleObjIds.push(res._id);
+  }
+
+  // ─── SESSIONS & ATTENDANCE ───────────────────────────────────────────────
+  console.log('🚀 Running Session Life Cycles for Today...');
+
+  for (let i = 0; i < scheduleObjIds.length; i++) {
+    const schId = scheduleObjIds[i];
+    const sData = schedulesData[i];
+    const tIndex = teacherIds.indexOf(sData.teacherId);
+    const token = teacherTokens[tIndex];
+
+    console.log(`▶️ Starting session for schedule ${schId} (${sData.room})...`);
+    const session = await apiRequest<ItemResponse>(
+      'POST',
+      `/sessions/start/${schId}`,
+      undefined,
+      token,
+    );
+
+    console.log('📡 Scanning students...');
+    for (const sid of studentObjIds) {
+      const roll = Math.random();
+      const status = roll < 0.7 ? 'present' : roll < 0.9 ? 'late' : 'absent';
+      await apiRequest<unknown>(
+        'POST',
+        '/attendance/scan',
+        {
+          sessionId: session._id,
+          studentId: sid,
+          status,
+        },
+        token,
+      );
+    }
+
+    console.log('🛑 Ending session...');
+    await apiRequest<unknown>(
+      'POST',
+      `/sessions/${session._id}/end`,
+      undefined,
+      token,
+    );
+  }
+
+  // ─── HISTORICAL DATA (LAST 30 DAYS) ─────────────────────────────────────
+  console.log('⏳ Creating historical data (last 30 days)...');
   const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
-  const closedSession = await apiRequest('POST', '/sessions', {
-    scheduleId: webCours._id,
-    teacherId,
-    moduleId: webModule._id,
-    date: formatDate(yesterday),
-    startTime: '08:00',
-    endTime: '09:30',
-    type: 'cours',
-    group: 'Whole Year',
-    status: 'closed',
-    isReplacement: false,
-  }, teacherToken);
+  for (let d = 1; d <= 30; d++) {
+    const date = new Date();
+    date.setDate(today.getDate() - d);
+    if (date.getDay() === 5 || date.getDay() === 6) continue; // Skip Friday/Saturday (weekend)
 
-  const closedSession2 = await apiRequest('POST', '/sessions', {
-    scheduleId: webTd._id,
-    teacherId,
-    moduleId: webModule._id,
-    date: formatDate(twoDaysAgo),
-    startTime: '09:45',
-    endTime: '11:15',
-    type: 'td',
-    group: '2A',
-    status: 'closed',
-    isReplacement: false,
-  }, teacherToken);
+    const dayName = days[date.getDay()];
+    // Find a schedule for this day or just use one
+    const sData = schedulesData[d % schedulesData.length];
+    const tIndex = teacherIds.indexOf(sData.teacherId);
+    const token = teacherTokens[tIndex];
 
-  const activeSession = await apiRequest('POST', '/sessions', {
-    scheduleId: webTd._id,
-    teacherId,
-    moduleId: webModule._id,
-    date: formatDate(today),
-    startTime: '09:45',
-    endTime: '11:15',
-    type: 'td',
-    group: '2A',
-    status: 'active',
-    isReplacement: false,
-  }, teacherToken);
+    const historicalSession = await apiRequest<ItemResponse>(
+      'POST',
+      '/sessions',
+      {
+        teacherId: sData.teacherId,
+        moduleId: sData.moduleId,
+        date: formatDate(date),
+        startTime: sData.startTime,
+        endTime: sData.endTime,
+        type: sData.type,
+        group: sData.group,
+        status: 'closed',
+      },
+      token,
+    );
 
-  await apiRequest('POST', '/sessions', {
-    scheduleId: webCours._id,
-    teacherId,
-    moduleId: webModule._id,
-    date: formatDate(tomorrow),
-    startTime: '08:00',
-    endTime: '09:30',
-    type: 'cours',
-    group: 'Whole Year',
-    status: 'planned',
-    isReplacement: false,
-  }, teacherToken);
-
-  await apiRequest('POST', '/sessions', {
-    teacherId,
-    moduleId: mobileModule._id,
-    date: formatDate(dayAfter),
-    startTime: '13:00',
-    endTime: '14:30',
-    type: 'td',
-    group: '2A',
-    status: 'planned',
-    isReplacement: true,
-    reasonForReplacement: 'Teacher was sick last Monday',
-  }, teacherToken);
-
-  // ─── ATTENDANCE ───────────────────────────────────────────────────────────
-  console.log('✅ Creating Attendance Records via API...');
-
-  // Closed session 1 — mostly present
-  for (let i = 0; i < studentIds.length; i++) {
-    const roll = Math.random();
-    const status = roll < 0.6 ? 'present' : roll < 0.8 ? 'late' : 'absent';
-    await apiRequest('POST', '/attendance/scan', {
-      sessionId: closedSession._id,
-      studentId: studentIds[i],
-      status,
-      ...(status !== 'absent' && { scanTime: yesterday.toISOString() }),
-    }, teacherToken);
+    for (const sid of studentObjIds) {
+      const roll = Math.random();
+      // Most students are present in history
+      const status = roll < 0.85 ? 'present' : roll < 0.95 ? 'late' : 'absent';
+      await apiRequest<unknown>(
+        'POST',
+        '/attendance/scan',
+        {
+          sessionId: historicalSession._id,
+          studentId: sid,
+          status,
+        },
+        token,
+      );
+    }
   }
 
-  // Closed session 2 — mixed
-  for (let i = 0; i < studentIds.length; i++) {
-    const roll = Math.random();
-    const status = roll < 0.5 ? 'present' : roll < 0.75 ? 'late' : 'absent';
-    await apiRequest('POST', '/attendance/scan', {
-      sessionId: closedSession2._id,
-      studentId: studentIds[i],
-      status,
-      ...(status !== 'absent' && { scanTime: twoDaysAgo.toISOString() }),
-    }, teacherToken);
-  }
-
-  // Active session — only first 6 students have scanned so far
-  for (let i = 0; i < 6; i++) {
-    await apiRequest('POST', '/attendance/scan', {
-      sessionId: activeSession._id,
-      studentId: studentIds[i],
-      status: i < 4 ? 'present' : 'late',
-      scanTime: today.toISOString(),
-    }, teacherToken);
-  }
-
-  // ─── DONE ─────────────────────────────────────────────────────────────────
   console.log('\n====================================');
-  console.log('✅ API Seeding completed successfully!');
+  console.log('🎉 Seeding completed successfully!');
   console.log('====================================');
-  console.log('\n📋 SEED DATA SUMMARY:');
-  console.log('────────────────────────────────────');
-  console.log('👨‍🏫 TEACHER LOGIN:');
-  console.log('   Email:    t.test@univ-setif.dz');
-  console.log('   Password: password123');
-  console.log('────────────────────────────────────');
-  console.log('👨‍🎓 STUDENTS (10 total):');
-  console.log('   Year: L2 | Group: 2A | Speciality: Computer Science');
-  console.log('   Passwords: each student\'s birthday (e.g. 15031999)');
-  console.log('────────────────────────────────────');
-  console.log('📚 MODULES: Web Development, Mobile Development');
-  console.log('📅 SCHEDULES: 4 (Sun, Sun, Mon, Wed)');
-  console.log('⏱️  SESSIONS:');
-  console.log('   - 2 × closed (past)');
-  console.log('   - 1 × active (TODAY — 6/10 students scanned)');
-  console.log('   - 2 × planned (future)');
-  console.log('✅ ATTENDANCE: Full records for closed sessions');
-  console.log('====================================\n');
+  console.log('\n--- Seeded Credentials ---');
+  console.log('Admin: admin@admin.com / admin123');
+  teachers.forEach((t) => {
+    console.log(`Teacher: ${t.email} / password123`);
+  });
+  studentData.forEach((s, index) => {
+    console.log(
+      `Student: ${s.fullName} | ID: ${s.studentId} | Password: sciences${s.birthday} | MongoID: ${studentObjIds[index]}`,
+    );
+  });
+  console.log('====================================');
 
   await connection.close();
 }

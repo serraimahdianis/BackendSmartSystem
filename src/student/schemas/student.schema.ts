@@ -24,7 +24,7 @@ export class Student {
   @Prop({ required: true })
   birthday: string;
 
-  @ApiProperty({ example: 'ST1001' })
+  @ApiProperty({ example: '1001' })
   @Prop({ required: true, unique: true })
   studentId: string;
 

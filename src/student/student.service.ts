@@ -3,6 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { Student, StudentDocument } from './schemas/student.schema';
+import {
+  Schedule,
+  ScheduleDocument,
+} from '../schedule/schemas/schedule.schema';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 
@@ -10,11 +14,15 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 export class StudentService {
   constructor(
     @InjectModel(Student.name) private studentModel: Model<StudentDocument>,
+    @InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>,
   ) {}
 
   async create(createStudentDto: CreateStudentDto): Promise<Student> {
-    // Auto-generate password from birthday (hashed)
-    const hashedPassword = await bcrypt.hash(createStudentDto.birthday, 10);
+    // Auto-generate password from birthday (prefixed with 'sciences') (hashed)
+    const hashedPassword = await bcrypt.hash(
+      `sciences${createStudentDto.birthday}`,
+      10,
+    );
     const createdStudent = new this.studentModel({
       ...createStudentDto,
       password: hashedPassword,
@@ -24,6 +32,25 @@ export class StudentService {
 
   async findAll(): Promise<Student[]> {
     return this.studentModel.find().exec();
+  }
+
+  /**
+   * Returns students belonging to the teacher's schedules (year/group).
+   */
+  async findForTeacher(teacherId: string): Promise<Student[]> {
+    const schedules = await this.scheduleModel.find({ teacherId }).exec();
+    if (schedules.length === 0) return [];
+
+    // Map schedules to query conditions
+    const conditions = schedules.map((s) => {
+      if (s.type === 'cours' || !s.group) {
+        return { year: s.year };
+      }
+      return { year: s.year, group: s.group };
+    });
+
+    // Use $or to find students matching any schedule condition
+    return this.studentModel.find({ $or: conditions }).exec();
   }
 
   async findOne(id: string): Promise<Student> {

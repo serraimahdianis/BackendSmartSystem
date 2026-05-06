@@ -103,7 +103,7 @@ npm run test:e2e
 ## Authentication Flows
 
 ### 👨‍🏫 Teacher Registration
-1. `POST /auth/teacher/register` — provide fullName, email (`@univ-*.dz`), password, department
+1. `POST /auth/teacher/register` — provide fullName, email, password, department
 2. System sends a 6-digit OTP to the email
 3. `POST /auth/teacher/verify-otp` — provide email + OTP code
 4. Account activated → JWT token returned
@@ -121,6 +121,11 @@ npm run test:e2e
 
 ---
 
+## 💻 Frontend Developer Guide
+
+A comprehensive API guide covering the full Teacher workflow, endpoints, JWT authentication, and session lifecycle is available in the **[Teacher Frontend Guide](./TEACHER_FRONTEND_GUIDE.md)** file.
+
+---
 ## Role Permissions Matrix
 
 | Endpoint | Admin | Teacher | Student |
@@ -227,7 +232,7 @@ npm run test:e2e
 
 | Collection | Key Fields |
 |---|---|
-| **Teacher** | fullName, email (@univ-*.dz), password (hashed), department, isVerified, otp |
+| **Teacher** | fullName, email, password (hashed), department, isVerified, otp |
 | **Student** | fullName, email, birthday (DDMMYYYY), password (auto-hashed), studentId, rfidCode, qrCode, group, year, speciality |
 | **Module** | name, teacherId (ref), year |
 | **Schedule** | teacherId, moduleId, type (cours/td/tp), year, group, dayOfWeek, startTime, endTime, room |

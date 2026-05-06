@@ -36,6 +36,15 @@ export class ScheduleService {
     return schedule;
   }
 
+  /** Returns the raw, unpopulated document — use this for ownership checks */
+  async findOneRaw(id: string): Promise<ScheduleDocument> {
+    const schedule = await this.scheduleModel.findById(id).exec();
+    if (!schedule) {
+      throw new NotFoundException(`Schedule with ID "${id}" not found`);
+    }
+    return schedule;
+  }
+
   async findByTeacher(teacherId: string): Promise<Schedule[]> {
     return this.scheduleModel
       .find({ teacherId })

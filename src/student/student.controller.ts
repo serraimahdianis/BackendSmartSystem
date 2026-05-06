@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,6 +17,7 @@ import {
   ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Student } from './schemas/student.schema';
 import { StudentService } from './student.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
@@ -45,16 +47,34 @@ export class StudentController {
   @Get()
   @Roles('admin', 'teacher')
   @ApiOperation({
-    summary: 'Get all students (optionally filter by group & year)',
+    summary: 'Get students (Teachers only see their assigned students)',
   })
   @ApiResponse({ status: 200, description: 'List of students' })
   @ApiQuery({ name: 'group', required: false, example: '2A' })
   @ApiQuery({ name: 'year', required: false, example: 'L2' })
-  findAll(@Query('group') group?: string, @Query('year') year?: string) {
-    if (group && year) {
-      return this.studentService.findByGroup(group, year);
+  async findAll(
+    @Query('group') group?: string,
+    @Query('year') year?: string,
+    @Request() req?: { user: { userId: string; role: string } },
+  ) {
+    let students: Student[];
+
+    // 1. Get base list of students
+    if (req?.user?.role === 'teacher') {
+      students = await this.studentService.findForTeacher(req.user.userId);
+    } else {
+      students = await this.studentService.findAll();
     }
-    return this.studentService.findAll();
+
+    // 2. Apply query filters if provided
+    if (year) {
+      students = students.filter((s) => s.year === year);
+    }
+    if (group) {
+      students = students.filter((s) => s.group === group);
+    }
+
+    return students;
   }
 
   @Get('rfid/:rfidCode')

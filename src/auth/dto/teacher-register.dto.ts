@@ -1,11 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsEmail,
-  IsNotEmpty,
-  IsString,
-  Matches,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class TeacherRegisterDto {
   @ApiProperty({ example: 'Dr. Ahmed Bouzid', description: 'Full name' })
@@ -14,13 +8,10 @@ export class TeacherRegisterDto {
   fullName: string;
 
   @ApiProperty({
-    example: 'a.bouzid@univ-setif.dz',
-    description: 'Must be a university email',
+    example: 'teacher@email.com',
+    description: 'Teacher email address',
   })
   @IsEmail()
-  @Matches(/@univ-[a-zA-Z0-9-]+\.dz$/, {
-    message: 'Email must be a university email (e.g. @univ-setif.dz)',
-  })
   email: string;
 
   @ApiProperty({

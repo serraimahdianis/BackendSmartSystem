@@ -34,11 +34,12 @@ export class CreateStudentDto {
   birthday: string;
 
   @ApiProperty({
-    example: 'ST1001',
-    description: 'Unique university student ID',
+    example: '1001',
+    description: 'Numeric university student ID (digits only, no prefixes)',
   })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^\d+$/, { message: 'studentId must contain only digits' })
   studentId: string;
 
   @ApiProperty({

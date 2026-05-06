@@ -4,7 +4,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  Matches,
   MinLength,
 } from 'class-validator';
 
@@ -18,13 +17,10 @@ export class CreateTeacherDto {
   fullName: string;
 
   @ApiProperty({
-    example: 'a.bouzid@univ-setif.dz',
-    description: 'University email — must end with @univ-*.dz',
+    example: 'teacher@email.com',
+    description: 'Teacher email address',
   })
   @IsEmail()
-  @Matches(/@univ-[a-zA-Z0-9-]+\.dz$/, {
-    message: 'Email must be a university email (e.g. @univ-setif.dz)',
-  })
   email: string;
 
   @ApiProperty({

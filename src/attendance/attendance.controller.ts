@@ -6,12 +6,15 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
@@ -52,6 +55,24 @@ export class AttendanceController {
   })
   findByStudent(@Param('studentId') studentId: string) {
     return this.attendanceService.findByStudent(studentId);
+  }
+
+  @Get('stats')
+  @Roles('admin', 'teacher', 'student')
+  @ApiOperation({ summary: 'Get attendance statistics' })
+  @ApiQuery({
+    name: 'studentId',
+    required: false,
+    description:
+      'Filter stats for a specific student (MongoDB _id). Students always get their own stats regardless of this parameter.',
+  })
+  @ApiResponse({ status: 200, description: 'Attendance statistics' })
+  getStats(@Req() req: any, @Query('studentId') studentId?: string) {
+    // If logged in as student, enforce filtering by their own userId from token
+    if (req.user && req.user.role === 'student') {
+      return this.attendanceService.getStats(req.user.userId);
+    }
+    return this.attendanceService.getStats(studentId);
   }
 
   @Get(':id')

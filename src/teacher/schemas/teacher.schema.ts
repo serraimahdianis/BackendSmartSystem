@@ -10,11 +10,10 @@ export class Teacher {
   @Prop({ required: true })
   fullName: string;
 
-  @ApiProperty({ example: 'a.bouzid@univ-setif.dz' })
+  @ApiProperty({ example: 'teacher@email.com' })
   @Prop({
     required: true,
     unique: true,
-    match: /@univ-[a-zA-Z0-9-]+\.dz$/,
   })
   email: string;
 

@@ -25,6 +25,9 @@ export class ModuleService {
   }
 
   async findOne(id: string): Promise<AcademicModule> {
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      throw new NotFoundException(`Module with ID "${id}" not found`);
+    }
     const module = await this.moduleModel
       .findById(id)
       .populate('teacherId', 'fullName email')
@@ -46,6 +49,9 @@ export class ModuleService {
     id: string,
     updateModuleDto: UpdateModuleDto,
   ): Promise<AcademicModule> {
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      throw new NotFoundException(`Module with ID "${id}" not found`);
+    }
     const updatedModule = await this.moduleModel
       .findByIdAndUpdate(id, updateModuleDto, { returnDocument: 'after' })
       .exec();
@@ -56,6 +62,9 @@ export class ModuleService {
   }
 
   async remove(id: string): Promise<void> {
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      throw new NotFoundException(`Module with ID "${id}" not found`);
+    }
     const result = await this.moduleModel.findByIdAndDelete(id).exec();
     if (!result) {
       throw new NotFoundException(`Module with ID "${id}" not found`);
