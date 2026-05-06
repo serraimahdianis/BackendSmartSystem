@@ -249,3 +249,5 @@ A comprehensive API guide covering the full Teacher workflow, endpoints, JWT aut
 - **Email:** Nodemailer (SMTP)
 - **Docs:** Swagger UI (`/api`)
 - **Validation:** class-validator + class-transformer
+#   B a c k e n d S m a r t S y s t e m  
+ 
