@@ -4,6 +4,7 @@ import { Attendance, AttendanceSchema } from './schemas/attendance.schema';
 import { Student, StudentSchema } from '../student/schemas/student.schema';
 import { AttendanceService } from './attendance.service';
 import { AttendanceController } from './attendance.controller';
+import { StudentModule } from '../student/student.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { AttendanceController } from './attendance.controller';
       { name: Attendance.name, schema: AttendanceSchema },
       { name: Student.name, schema: StudentSchema },
     ]),
+    StudentModule,
   ],
   controllers: [AttendanceController],
   providers: [AttendanceService],

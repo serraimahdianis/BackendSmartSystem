@@ -41,7 +41,6 @@ export class StudentService {
     const schedules = await this.scheduleModel.find({ teacherId }).exec();
     if (schedules.length === 0) return [];
 
-    // Map schedules to query conditions
     const conditions = schedules.map((s) => {
       if (s.type === 'cours' || !s.group) {
         return { year: s.year };
@@ -49,8 +48,41 @@ export class StudentService {
       return { year: s.year, group: s.group };
     });
 
-    // Use $or to find students matching any schedule condition
     return this.studentModel.find({ $or: conditions }).exec();
+  }
+
+  /**
+   * Verifies if a student is assigned to a specific teacher based on schedules.
+   */
+  async isAssignedToTeacher(
+    studentId: string,
+    teacherId: string,
+  ): Promise<boolean> {
+    const [student, schedules] = await Promise.all([
+      this.studentModel.findById(studentId).exec(),
+      this.scheduleModel.find({ teacherId }).exec(),
+    ]);
+
+    if (!student || schedules.length === 0) return false;
+
+    return schedules.some((s) => {
+      const yearMatch = s.year === student.year;
+      const groupMatch =
+        s.type === 'cours' || !s.group || s.group === student.group;
+      return yearMatch && groupMatch;
+    });
+  }
+
+  /**
+   * Verifies if a student (by RFID) is assigned to a teacher.
+   */
+  async isRfidAssignedToTeacher(
+    rfidCode: string,
+    teacherId: string,
+  ): Promise<boolean> {
+    const student = await this.studentModel.findOne({ rfidCode }).exec();
+    if (!student) return false;
+    return this.isAssignedToTeacher(student._id.toString(), teacherId);
   }
 
   async findOne(id: string): Promise<Student> {

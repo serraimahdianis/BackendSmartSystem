@@ -8,6 +8,7 @@ import {
   UseGuards,
   Query,
   Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,16 +19,29 @@ import {
 } from '@nestjs/swagger';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
+import { StudentService } from '../student/student.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+
+interface User {
+  userId: string;
+  role: string;
+}
+
+interface RequestWithUser {
+  user: User;
+}
 
 @ApiTags('attendance')
 @ApiBearerAuth()
 @Controller('attendance')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AttendanceController {
-  constructor(private readonly attendanceService: AttendanceService) {}
+  constructor(
+    private readonly attendanceService: AttendanceService,
+    private readonly studentService: StudentService,
+  ) {}
 
   @Post('scan')
   @Roles('admin', 'teacher')
@@ -53,7 +67,21 @@ export class AttendanceController {
     status: 200,
     description: 'Attendance history for the student',
   })
-  findByStudent(@Param('studentId') studentId: string) {
+  async findByStudent(
+    @Param('studentId') studentId: string,
+    @Req() req: RequestWithUser,
+  ) {
+    if (req.user.role === 'teacher') {
+      const allowed = await this.studentService.isAssignedToTeacher(
+        studentId,
+        req.user.userId,
+      );
+      if (!allowed) {
+        throw new ForbiddenException(
+          'You do not have permission to access this student attendance.',
+        );
+      }
+    }
     return this.attendanceService.findByStudent(studentId);
   }
 
@@ -67,11 +95,28 @@ export class AttendanceController {
       'Filter stats for a specific student (MongoDB _id). Students always get their own stats regardless of this parameter.',
   })
   @ApiResponse({ status: 200, description: 'Attendance statistics' })
-  getStats(@Req() req: any, @Query('studentId') studentId?: string) {
-    // If logged in as student, enforce filtering by their own userId from token
+  async getStats(
+    @Req() req: RequestWithUser,
+    @Query('studentId') studentId?: string,
+  ) {
+    // 1. If logged in as student, enforce filtering by their own userId from token
     if (req.user && req.user.role === 'student') {
       return this.attendanceService.getStats(req.user.userId);
     }
+
+    // 2. If logged in as teacher and providing a studentId, check permissions
+    if (req.user && req.user.role === 'teacher' && studentId) {
+      const allowed = await this.studentService.isAssignedToTeacher(
+        studentId,
+        req.user.userId,
+      );
+      if (!allowed) {
+        throw new ForbiddenException(
+          'You do not have permission to access statistics for this student.',
+        );
+      }
+    }
+
     return this.attendanceService.getStats(studentId);
   }
 

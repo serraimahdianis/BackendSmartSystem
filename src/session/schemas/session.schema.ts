@@ -41,10 +41,14 @@ export class Session {
   @Prop()
   group: string;
 
-  @ApiProperty({ example: 'planned', enum: ['planned', 'active', 'closed'] })
+  @ApiProperty({
+    example: 'planned',
+    enum: ['planned', 'active', 'closed', 'canceled'],
+    description: 'Session lifecycle status',
+  })
   @Prop({
     required: true,
-    enum: ['planned', 'active', 'closed'],
+    enum: ['planned', 'active', 'closed', 'canceled'],
     default: 'planned',
   })
   status: string;

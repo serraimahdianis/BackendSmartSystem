@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -82,7 +83,21 @@ export class StudentController {
   @ApiOperation({ summary: 'Find student by RFID code' })
   @ApiResponse({ status: 200, description: 'Student found' })
   @ApiResponse({ status: 404, description: 'Student not found' })
-  findByRfid(@Param('rfidCode') rfidCode: string) {
+  async findByRfid(
+    @Param('rfidCode') rfidCode: string,
+    @Request() req: { user: { userId: string; role: string } },
+  ) {
+    if (req.user.role === 'teacher') {
+      const allowed = await this.studentService.isRfidAssignedToTeacher(
+        rfidCode,
+        req.user.userId,
+      );
+      if (!allowed) {
+        throw new ForbiddenException(
+          'You do not have permission to access this student.',
+        );
+      }
+    }
     return this.studentService.findByRfid(rfidCode);
   }
 
@@ -91,7 +106,21 @@ export class StudentController {
   @ApiOperation({ summary: 'Get a student by ID' })
   @ApiResponse({ status: 200, description: 'Student found' })
   @ApiResponse({ status: 404, description: 'Student not found' })
-  findOne(@Param('id') id: string) {
+  async findOne(
+    @Param('id') id: string,
+    @Request() req: { user: { userId: string; role: string } },
+  ) {
+    if (req.user.role === 'teacher') {
+      const allowed = await this.studentService.isAssignedToTeacher(
+        id,
+        req.user.userId,
+      );
+      if (!allowed) {
+        throw new ForbiddenException(
+          'You do not have permission to access this student.',
+        );
+      }
+    }
     return this.studentService.findOne(id);
   }
 

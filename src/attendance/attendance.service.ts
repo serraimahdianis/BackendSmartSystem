@@ -17,17 +17,44 @@ export class AttendanceService {
   async recordScan(
     createAttendanceDto: CreateAttendanceDto,
   ): Promise<Attendance> {
-    // Set scanTime to now if not provided
     if (!createAttendanceDto.scanTime) {
       createAttendanceDto.scanTime = new Date().toISOString();
     }
-    const record = new this.attendanceModel(createAttendanceDto);
+    const sessionIdOid = new Types.ObjectId(createAttendanceDto.sessionId);
+    const studentIdOid = new Types.ObjectId(createAttendanceDto.studentId);
+
+    const existing = await this.attendanceModel
+      .findOne({
+        $or: [
+          { sessionId: sessionIdOid, studentId: studentIdOid },
+          {
+            sessionId: sessionIdOid,
+            studentId: studentIdOid,
+          },
+        ],
+      })
+      .exec();
+
+    if (existing) {
+      existing.status = createAttendanceDto.status;
+      existing.scanTime = new Date(createAttendanceDto.scanTime);
+      return existing.save();
+    }
+
+    const record = new this.attendanceModel({
+      ...createAttendanceDto,
+      sessionId: sessionIdOid,
+      studentId: studentIdOid,
+      scanTime: new Date(createAttendanceDto.scanTime),
+    });
     return record.save();
   }
 
   async findBySession(sessionId: string): Promise<Attendance[]> {
     return this.attendanceModel
-      .find({ sessionId: new Types.ObjectId(sessionId) })
+      .find({
+        $or: [{ sessionId: new Types.ObjectId(sessionId) }],
+      })
       .populate('studentId', 'fullName studentId group')
       .exec();
   }
@@ -59,9 +86,13 @@ export class AttendanceService {
       try {
         const studentOid = new Types.ObjectId(studentId);
         // Verify student exists to avoid returning 0s for stale sessions
-        const studentExists = await this.studentModel.exists({ _id: studentOid });
+        const studentExists = await this.studentModel.exists({
+          _id: studentOid,
+        });
         if (!studentExists) {
-          throw new NotFoundException(`Student with ID "${studentId}" not found`);
+          throw new NotFoundException(
+            `Student with ID "${studentId}" not found`,
+          );
         }
         filter.studentId = studentOid;
       } catch (e) {

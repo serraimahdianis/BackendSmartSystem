@@ -111,7 +111,6 @@ async function seed() {
 
   // ─── STUDENTS ─────────────────────────────────────────────────────────────
   console.log('👨‍🎓 Admin creating Mock Students...');
-  const studentIds: string[] = [];
   const studentData = [
     {
       fullName: 'SERRAI MAHDI ANIS',
@@ -397,7 +396,6 @@ async function seed() {
     date.setDate(today.getDate() - d);
     if (date.getDay() === 5 || date.getDay() === 6) continue; // Skip Friday/Saturday (weekend)
 
-    const dayName = days[date.getDay()];
     // Find a schedule for this day or just use one
     const sData = schedulesData[d % schedulesData.length];
     const tIndex = teacherIds.indexOf(sData.teacherId);

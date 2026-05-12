@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { StudentModule } from './student/student.module';
@@ -14,6 +15,7 @@ import { AttendanceModule } from './attendance/attendance.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    NestScheduleModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

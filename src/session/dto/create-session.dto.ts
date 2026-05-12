@@ -65,11 +65,11 @@ export class CreateSessionDto {
 
   @ApiProperty({
     example: 'planned',
-    enum: ['planned', 'active', 'closed'],
+    enum: ['planned', 'active', 'closed', 'canceled'],
     required: false,
   })
   @IsOptional()
-  @IsEnum(['planned', 'active', 'closed'])
+  @IsEnum(['planned', 'active', 'closed', 'canceled'])
   status?: string;
 
   @ApiProperty({ example: false, required: false })
