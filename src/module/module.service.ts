@@ -5,6 +5,14 @@ import { AcademicModule, ModuleDocument } from './schemas/module.schema';
 import { CreateModuleDto } from './dto/create-module.dto';
 import { UpdateModuleDto } from './dto/update-module.dto';
 
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 @Injectable()
 export class ModuleService {
   constructor(
@@ -17,11 +25,15 @@ export class ModuleService {
     return createdModule.save();
   }
 
-  async findAll(): Promise<AcademicModule[]> {
-    return this.moduleModel
+  async findAll(page: number = 1, limit: number = 20): Promise<PaginatedResult<AcademicModule>> {
+    const total = await this.moduleModel.countDocuments().exec();
+    const data = await this.moduleModel
       .find()
+      .skip((page - 1) * limit)
+      .limit(limit)
       .populate('teacherId', 'fullName email')
       .exec();
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: string): Promise<AcademicModule> {
@@ -38,11 +50,15 @@ export class ModuleService {
     return module;
   }
 
-  async findByTeacher(teacherId: string): Promise<AcademicModule[]> {
-    return this.moduleModel
+  async findByTeacher(teacherId: string, page: number = 1, limit: number = 20): Promise<PaginatedResult<AcademicModule>> {
+    const total = await this.moduleModel.countDocuments({ teacherId }).exec();
+    const data = await this.moduleModel
       .find({ teacherId })
+      .skip((page - 1) * limit)
+      .limit(limit)
       .populate('teacherId', 'fullName email')
       .exec();
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async update(

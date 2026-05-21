@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+﻿import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -39,8 +39,8 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
   console.log(
-    `Application running on: http://localhost:${process.env.PORT ?? 3000}`,
+    'Application running on: http://localhost:' + (process.env.PORT ?? 3000),
   );
-  console.log(`Swagger docs: http://localhost:${process.env.PORT ?? 3000}/api`);
+  console.log('Swagger docs: http://localhost:' + (process.env.PORT ?? 3000) + '/api');
 }
 void bootstrap();

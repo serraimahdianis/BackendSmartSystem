@@ -53,29 +53,23 @@ export class StudentController {
   @ApiResponse({ status: 200, description: 'List of students' })
   @ApiQuery({ name: 'group', required: false, example: '2A' })
   @ApiQuery({ name: 'year', required: false, example: 'L2' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
   async findAll(
     @Query('group') group?: string,
     @Query('year') year?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
     @Request() req?: { user: { userId: string; role: string } },
   ) {
-    let students: Student[];
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
 
-    // 1. Get base list of students
     if (req?.user?.role === 'teacher') {
-      students = await this.studentService.findForTeacher(req.user.userId);
-    } else {
-      students = await this.studentService.findAll();
+      return this.studentService.findForTeacher(req.user.userId, year, group, page, limit);
     }
 
-    // 2. Apply query filters if provided
-    if (year) {
-      students = students.filter((s) => s.year === year);
-    }
-    if (group) {
-      students = students.filter((s) => s.group === group);
-    }
-
-    return students;
+    return this.studentService.findAll(year, group, page, limit);
   }
 
   @Get('rfid/:rfidCode')

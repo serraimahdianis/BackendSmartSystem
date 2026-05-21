@@ -10,6 +10,14 @@ import {
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 @Injectable()
 export class StudentService {
   constructor(
@@ -30,16 +38,40 @@ export class StudentService {
     return createdStudent.save();
   }
 
-  async findAll(): Promise<Student[]> {
-    return this.studentModel.find().exec();
+  async findAll(
+    year?: string,
+    group?: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<Student>> {
+    const filter: Record<string, any> = {};
+    if (year) filter.year = year;
+    if (group) filter.group = group;
+
+    const total = await this.studentModel.countDocuments(filter).exec();
+    const data = await this.studentModel
+      .find(filter)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   /**
    * Returns students belonging to the teacher's schedules (year/group).
    */
-  async findForTeacher(teacherId: string): Promise<Student[]> {
+  async findForTeacher(
+    teacherId: string,
+    year?: string,
+    group?: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<Student>> {
     const schedules = await this.scheduleModel.find({ teacherId }).exec();
-    if (schedules.length === 0) return [];
+    if (schedules.length === 0) {
+      return { data: [], total: 0, page, limit, totalPages: 0 };
+    }
 
     const conditions = schedules.map((s) => {
       if (s.type === 'cours' || !s.group) {
@@ -48,7 +80,18 @@ export class StudentService {
       return { year: s.year, group: s.group };
     });
 
-    return this.studentModel.find({ $or: conditions }).exec();
+    const filter: Record<string, any> = { $or: conditions };
+    if (year) filter.year = year;
+    if (group) filter.group = group;
+
+    const total = await this.studentModel.countDocuments(filter).exec();
+    const data = await this.studentModel
+      .find(filter)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   /**

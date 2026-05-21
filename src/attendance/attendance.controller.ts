@@ -56,8 +56,16 @@ export class AttendanceController {
   @Roles('admin', 'teacher')
   @ApiOperation({ summary: 'Get all attendance records for a session' })
   @ApiResponse({ status: 200, description: 'Attendance list for the session' })
-  findBySession(@Param('sessionId') sessionId: string) {
-    return this.attendanceService.findBySession(sessionId);
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  findBySession(
+    @Param('sessionId') sessionId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+    return this.attendanceService.findBySession(sessionId, page, limit);
   }
 
   @Get('student/:studentId')
@@ -67,10 +75,17 @@ export class AttendanceController {
     status: 200,
     description: 'Attendance history for the student',
   })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
   async findByStudent(
     @Param('studentId') studentId: string,
     @Req() req: RequestWithUser,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+
     if (req.user.role === 'teacher') {
       const allowed = await this.studentService.isAssignedToTeacher(
         studentId,
@@ -82,7 +97,7 @@ export class AttendanceController {
         );
       }
     }
-    return this.attendanceService.findByStudent(studentId);
+    return this.attendanceService.findByStudent(studentId, page, limit);
   }
 
   @Get('stats')

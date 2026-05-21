@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { SessionService } from './session.service';
 import { CreateSessionDto } from './dto/create-session.dto';
+import { NonceService } from '../nonce/nonce.service';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -29,7 +30,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 @Controller('sessions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SessionController {
-  constructor(private readonly sessionService: SessionService) {}
+  constructor(
+    private readonly sessionService: SessionService,
+    private readonly nonceService: NonceService,
+  ) {}
 
   @Post()
   @Roles('admin', 'teacher')
@@ -72,19 +76,44 @@ export class SessionController {
   @ApiOperation({ summary: 'Get all sessions (optionally filter by date)' })
   @ApiResponse({ status: 200, description: 'List of sessions' })
   @ApiQuery({ name: 'date', required: false, example: '2026-04-28' })
-  findAll(@Query('date') date?: string) {
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  findAll(
+    @Query('date') date?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+
     if (date) {
-      return this.sessionService.findByDate(date);
+      return this.sessionService.findByDate(date, page, limit);
     }
-    return this.sessionService.findAll();
+    return this.sessionService.findAll(page, limit);
   }
 
   @Get('teacher/:teacherId')
   @Roles('admin', 'teacher')
   @ApiOperation({ summary: 'Get all sessions for a teacher' })
   @ApiResponse({ status: 200, description: 'Sessions for the given teacher' })
-  findByTeacher(@Param('teacherId') teacherId: string) {
-    return this.sessionService.findByTeacher(teacherId);
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  findByTeacher(
+    @Param('teacherId') teacherId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+    return this.sessionService.findByTeacher(teacherId, page, limit);
+  }
+
+  @Get(':id/nonce')
+  @Roles('teacher', 'student')
+  @ApiOperation({ summary: 'Generate a one-time nonce for QR attendance scan' })
+  @ApiResponse({ status: 200, description: 'Nonce generated' })
+  generateNonce(@Param('id') id: string) {
+    return this.nonceService.generate(id);
   }
 
   @Get(':id')

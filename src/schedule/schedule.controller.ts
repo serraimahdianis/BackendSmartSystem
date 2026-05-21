@@ -6,12 +6,14 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
+  ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ScheduleService } from './schedule.service';
@@ -40,16 +42,31 @@ export class ScheduleController {
   @Roles('admin', 'teacher', 'student')
   @ApiOperation({ summary: 'Get all schedules (with teacher & module info)' })
   @ApiResponse({ status: 200, description: 'List of all schedules' })
-  findAll() {
-    return this.scheduleService.findAll();
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  findAll(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+    return this.scheduleService.findAll(page, limit);
   }
 
   @Get('teacher/:teacherId')
   @Roles('admin', 'teacher')
   @ApiOperation({ summary: 'Get all schedules for a teacher' })
   @ApiResponse({ status: 200, description: 'Schedules for the given teacher' })
-  findByTeacher(@Param('teacherId') teacherId: string) {
-    return this.scheduleService.findByTeacher(teacherId);
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  findByTeacher(
+    @Param('teacherId') teacherId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+    return this.scheduleService.findByTeacher(teacherId, page, limit);
   }
 
   @Get(':id')

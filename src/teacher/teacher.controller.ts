@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiBody,
+  ApiQuery,
   ApiOkResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
@@ -76,8 +78,15 @@ export class TeacherController {
   @ApiForbiddenResponse({
     description: 'User does not have the required role (admin only)',
   })
-  findAll() {
-    return this.teacherService.findAll();
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  findAll(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+    return this.teacherService.findAll(page, limit);
   }
 
   @Get('me')

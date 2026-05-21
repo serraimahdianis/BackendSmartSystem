@@ -5,6 +5,14 @@ import { Schedule, ScheduleDocument } from './schemas/schedule.schema';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 @Injectable()
 export class ScheduleService {
   constructor(
@@ -16,12 +24,16 @@ export class ScheduleService {
     return createdSchedule.save();
   }
 
-  async findAll(): Promise<Schedule[]> {
-    return this.scheduleModel
+  async findAll(page: number = 1, limit: number = 20): Promise<PaginatedResult<Schedule>> {
+    const total = await this.scheduleModel.countDocuments().exec();
+    const data = await this.scheduleModel
       .find()
+      .skip((page - 1) * limit)
+      .limit(limit)
       .populate('teacherId', 'fullName email')
       .populate('moduleId', 'name')
       .exec();
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: string): Promise<Schedule> {
@@ -45,11 +57,15 @@ export class ScheduleService {
     return schedule;
   }
 
-  async findByTeacher(teacherId: string): Promise<Schedule[]> {
-    return this.scheduleModel
+  async findByTeacher(teacherId: string, page: number = 1, limit: number = 20): Promise<PaginatedResult<Schedule>> {
+    const total = await this.scheduleModel.countDocuments({ teacherId }).exec();
+    const data = await this.scheduleModel
       .find({ teacherId })
+      .skip((page - 1) * limit)
+      .limit(limit)
       .populate('moduleId', 'name')
       .exec();
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async update(

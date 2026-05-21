@@ -54,3 +54,6 @@ export class Student {
 }
 
 export const StudentSchema = SchemaFactory.createForClass(Student);
+
+StudentSchema.index({ group: 1, year: 1 });
+StudentSchema.index({ speciality: 1 });

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsMongoId, IsOptional, IsDateString } from 'class-validator';
+import { IsEnum, IsMongoId, IsOptional, IsDateString, IsString } from 'class-validator';
 
 export class CreateAttendanceDto {
   @ApiProperty({
@@ -30,4 +30,40 @@ export class CreateAttendanceDto {
   @IsOptional()
   @IsDateString()
   scanTime?: string;
+
+  @ApiProperty({
+    example: 'RFID',
+    description: 'Scan method',
+    enum: ['RFID', 'QR', 'MANUAL'],
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(['RFID', 'QR', 'MANUAL'])
+  method?: string;
+
+  @ApiProperty({
+    example: 'device-abc-123',
+    description: 'Device identifier for fingerprinting',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  deviceId?: string;
+
+  @ApiProperty({
+    example: '192.168.1.100',
+    description: 'IP address of the scanning device',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  ipAddress?: string;
+
+  @ApiProperty({
+    example: 'a1b2c3d4e5f6a7b8',
+    description: 'One-time nonce from QR code (optional, verified server-side)',
+    required: false,
+  })
+  @IsOptional()
+  nonce?: string;
 }

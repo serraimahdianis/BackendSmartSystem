@@ -5,6 +5,14 @@ import { Teacher, TeacherDocument } from './schemas/teacher.schema';
 import { CreateTeacherDto } from './dto/create-teacher.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
 
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 @Injectable()
 export class TeacherService {
   constructor(
@@ -16,8 +24,14 @@ export class TeacherService {
     return createdTeacher.save();
   }
 
-  async findAll(): Promise<Teacher[]> {
-    return this.teacherModel.find().exec();
+  async findAll(page: number = 1, limit: number = 20): Promise<PaginatedResult<Teacher>> {
+    const total = await this.teacherModel.countDocuments().exec();
+    const data = await this.teacherModel
+      .find()
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: string): Promise<Teacher> {

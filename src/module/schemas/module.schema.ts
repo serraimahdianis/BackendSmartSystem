@@ -22,3 +22,6 @@ export class AcademicModule {
 
 export const AcademicModuleSchema =
   SchemaFactory.createForClass(AcademicModule);
+
+AcademicModuleSchema.index({ teacherId: 1 });
+AcademicModuleSchema.index({ year: 1, name: 1 });

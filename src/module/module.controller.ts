@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -14,6 +15,7 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiBody,
+  ApiQuery,
   ApiOkResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
@@ -73,8 +75,15 @@ export class ModuleController {
   @ApiForbiddenResponse({
     description: 'User does not have the required role',
   })
-  findAll() {
-    return this.moduleService.findAll();
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  findAll(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+    return this.moduleService.findAll(page, limit);
   }
 
   @Get('teacher/:teacherId')
@@ -101,8 +110,16 @@ export class ModuleController {
   @ApiForbiddenResponse({
     description: 'User does not have the required role (admin or teacher)',
   })
-  findByTeacher(@Param('teacherId') teacherId: string) {
-    return this.moduleService.findByTeacher(teacherId);
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  findByTeacher(
+    @Param('teacherId') teacherId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+    return this.moduleService.findByTeacher(teacherId, page, limit);
   }
 
   @Get(':id')

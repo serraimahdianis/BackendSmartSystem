@@ -39,3 +39,6 @@ export class Teacher {
 }
 
 export const TeacherSchema = SchemaFactory.createForClass(Teacher);
+
+TeacherSchema.index({ department: 1 });
+TeacherSchema.index({ isVerified: 1 });

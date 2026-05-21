@@ -1,14 +1,19 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
+import { EventsModule } from './events/events.module';
+import { NonceModule } from './nonce/nonce.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { StudentModule } from './student/student.module';
 import { AcademicModuleModule } from './module/module.module';
 import { ScheduleModule } from './schedule/schedule.module';
 import { SessionModule } from './session/session.module';
 import { AttendanceModule } from './attendance/attendance.module';
+import { AntiFraudModule } from './anti-fraud/anti-fraud.module';
 
 @Module({
   imports: [
@@ -25,6 +30,10 @@ import { AttendanceModule } from './attendance/attendance.module';
       }),
       inject: [ConfigService],
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 60,
+    }]),
     AuthModule,
     TeacherModule,
     StudentModule,
@@ -32,8 +41,16 @@ import { AttendanceModule } from './attendance/attendance.module';
     ScheduleModule,
     SessionModule,
     AttendanceModule,
+    EventsModule,
+    NonceModule,
+    AntiFraudModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
