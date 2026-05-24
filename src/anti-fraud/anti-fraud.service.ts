@@ -2,12 +2,17 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
-import { FraudEvent, FraudEventDocument, FraudReasonCode } from './fraud-event.schema';
+import {
+  FraudEvent,
+  FraudEventDocument,
+  FraudReasonCode,
+} from './fraud-event.schema';
 import { EventsGateway } from '../events/events.gateway';
 
 interface ScanContext {
   sessionId: string;
   studentId: string;
+  teacherId?: string;
   rfidCode?: string;
   deviceId?: string;
   ipAddress?: string;
@@ -27,7 +32,8 @@ interface FraudCheckResult {
 export class AntiFraudService {
   private readonly logger = new Logger(AntiFraudService.name);
 
-  private recentScans: Map<string, { studentId: string; timestamp: number }[]> = new Map();
+  private recentScans: Map<string, { studentId: string; timestamp: number }[]> =
+    new Map();
 
   constructor(
     @InjectModel(FraudEvent.name)
@@ -37,7 +43,9 @@ export class AntiFraudService {
   ) {}
 
   getDuplicateInterval(): number {
-    return this.configService.get<number>('FRAUD_DUPLICATE_INTERVAL_MS') ?? 30000;
+    return (
+      this.configService.get<number>('FRAUD_DUPLICATE_INTERVAL_MS') ?? 30000
+    );
   }
 
   getVelocityWindowMs(): number {
@@ -69,12 +77,18 @@ export class AntiFraudService {
       fraudEvent = await this.persistFraudEvent({
         sessionId: ctx.sessionId,
         studentId: ctx.studentId,
-        reasonCode: 'DUPLICATE_SCAN' as FraudReasonCode,
+        reasonCode: 'DUPLICATE_SCAN',
         description: duplicateCheck,
         riskScore: 30,
         metadata: { method: ctx.method, scanTime: ctx.scanTime },
       });
-      return { rejected, reasonCode: finalReasonCode, description: finalDescription, riskScore: totalRiskScore, fraudEvent };
+      return {
+        rejected,
+        reasonCode: finalReasonCode,
+        description: finalDescription,
+        riskScore: totalRiskScore,
+        fraudEvent,
+      };
     }
 
     // Rule 2: Minimum inter-scan interval (different students scanned too fast)
@@ -86,7 +100,7 @@ export class AntiFraudService {
       fraudEvent = await this.persistFraudEvent({
         sessionId: ctx.sessionId,
         studentId: ctx.studentId,
-        reasonCode: 'FAST_INTERVAL' as FraudReasonCode,
+        reasonCode: 'FAST_INTERVAL',
         description: fastIntervalCheck,
         riskScore: 40,
         metadata: { method: ctx.method, scanTime: ctx.scanTime },
@@ -94,6 +108,7 @@ export class AntiFraudService {
       this.eventsGateway.emitFraudAlert({
         sessionId: ctx.sessionId,
         studentId: ctx.studentId,
+        teacherId: ctx.teacherId!,
         reason: fastIntervalCheck,
         riskScore: 40,
       });
@@ -108,14 +123,19 @@ export class AntiFraudService {
       fraudEvent = await this.persistFraudEvent({
         sessionId: ctx.sessionId,
         studentId: ctx.studentId,
-        reasonCode: 'VELOCITY_ANOMALY' as FraudReasonCode,
+        reasonCode: 'VELOCITY_ANOMALY',
         description: velocityCheck,
         riskScore: 50,
-        metadata: { method: ctx.method, scanTime: ctx.scanTime, totalScansInWindow: this.getRecentScansCount(ctx.sessionId) },
+        metadata: {
+          method: ctx.method,
+          scanTime: ctx.scanTime,
+          totalScansInWindow: this.getRecentScansCount(ctx.sessionId),
+        },
       });
       this.eventsGateway.emitFraudAlert({
         sessionId: ctx.sessionId,
         studentId: ctx.studentId,
+        teacherId: ctx.teacherId!,
         reason: velocityCheck,
         riskScore: 50,
       });
@@ -130,7 +150,7 @@ export class AntiFraudService {
       fraudEvent = await this.persistFraudEvent({
         sessionId: ctx.sessionId,
         studentId: ctx.studentId,
-        reasonCode: 'RELAY_ATTACK' as FraudReasonCode,
+        reasonCode: 'RELAY_ATTACK',
         description: relayCheck,
         riskScore: 60,
         metadata: { method: ctx.method, scanTime: ctx.scanTime },
@@ -138,6 +158,7 @@ export class AntiFraudService {
       this.eventsGateway.emitFraudAlert({
         sessionId: ctx.sessionId,
         studentId: ctx.studentId,
+        teacherId: ctx.teacherId!,
         reason: relayCheck,
         riskScore: 60,
       });
@@ -146,20 +167,38 @@ export class AntiFraudService {
     // Record this scan in recent scans for future checks
     this.recordScan(ctx);
 
-    return { rejected, reasonCode: finalReasonCode, description: finalDescription, riskScore: totalRiskScore, fraudEvent };
+    return {
+      rejected,
+      reasonCode: finalReasonCode,
+      description: finalDescription,
+      riskScore: totalRiskScore,
+      fraudEvent,
+    };
   }
 
   private async checkDuplicateScan(ctx: ScanContext): Promise<string | null> {
     const interval = this.getDuplicateInterval();
-    const existing = await this.fraudEventModel.findOne({
-      sessionId: ctx.sessionId,
-      studentId: ctx.studentId,
-      reasonCode: { $in: ['DUPLICATE_SCAN', 'FAST_INTERVAL', 'VELOCITY_ANOMALY'] },
-      createdAt: { $gte: new Date(Date.now() - interval) },
-    }).exec();
+    const existing = await this.fraudEventModel
+      .findOne({
+        sessionId: ctx.sessionId,
+        studentId: ctx.studentId,
+        reasonCode: {
+          $in: ['DUPLICATE_SCAN', 'FAST_INTERVAL', 'VELOCITY_ANOMALY'],
+        },
+        createdAt: { $gte: new Date(Date.now() - interval) },
+      })
+      .exec();
 
     if (existing) {
-      return 'Duplicate scan detected for student ' + ctx.studentId + ' in session ' + ctx.sessionId + ' within ' + interval + 'ms window';
+      return (
+        'Duplicate scan detected for student ' +
+        ctx.studentId +
+        ' in session ' +
+        ctx.sessionId +
+        ' within ' +
+        interval +
+        'ms window'
+      );
     }
 
     return null;
@@ -173,7 +212,14 @@ export class AntiFraudService {
     const elapsed = ctx.scanTime.getTime() - lastScan.timestamp;
 
     if (elapsed < 1000 && elapsed > 0) {
-      return 'Fast inter-scan interval: ' + elapsed + 'ms between student ' + lastScan.studentId + ' and student ' + ctx.studentId;
+      return (
+        'Fast inter-scan interval: ' +
+        elapsed +
+        'ms between student ' +
+        lastScan.studentId +
+        ' and student ' +
+        ctx.studentId
+      );
     }
 
     return null;
@@ -187,10 +233,18 @@ export class AntiFraudService {
     if (!scans || scans.length < threshold - 1) return null;
 
     const cutoff = ctx.scanTime.getTime() - windowMs;
-    const windowedScans = scans.filter(s => s.timestamp >= cutoff);
+    const windowedScans = scans.filter((s) => s.timestamp >= cutoff);
 
     if (windowedScans.length >= threshold) {
-      return 'Velocity anomaly: ' + (windowedScans.length + 1) + ' scans in ' + windowMs + 'ms window (threshold: ' + threshold + ')';
+      return (
+        'Velocity anomaly: ' +
+        (windowedScans.length + 1) +
+        ' scans in ' +
+        windowMs +
+        'ms window (threshold: ' +
+        threshold +
+        ')'
+      );
     }
 
     return null;
@@ -204,7 +258,11 @@ export class AntiFraudService {
     const diff = now - ctx.scanTime.getTime();
 
     if (diff > 3000) {
-      return 'Possible relay attack: scan timestamp is ' + diff + 'ms in the past (threshold: 3000ms)';
+      return (
+        'Possible relay attack: scan timestamp is ' +
+        diff +
+        'ms in the past (threshold: 3000ms)'
+      );
     }
 
     return null;
@@ -251,16 +309,22 @@ export class AntiFraudService {
   }
 
   async getFraudEvents(sessionId: string): Promise<FraudEvent[]> {
-    return this.fraudEventModel.find({ sessionId }).sort({ createdAt: -1 }).exec();
+    return this.fraudEventModel
+      .find({ sessionId })
+      .sort({ createdAt: -1 })
+      .exec();
   }
 
   async getStudentFraudStats(studentId: string): Promise<any> {
     const events = await this.fraudEventModel.find({ studentId }).exec();
     const totalScore = events.reduce((sum, e) => sum + e.riskScore, 0);
-    const byReason = events.reduce((acc, e) => {
-      acc[e.reasonCode] = (acc[e.reasonCode] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const byReason = events.reduce(
+      (acc, e) => {
+        acc[e.reasonCode] = (acc[e.reasonCode] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return { totalEvents: events.length, totalRiskScore: totalScore, byReason };
   }

@@ -19,14 +19,17 @@ export class FraudEvent {
   @Prop({ required: false })
   studentId: string;
 
-  @Prop({ required: true, enum: [
-    'DUPLICATE_SCAN',
-    'FAST_INTERVAL',
-    'VELOCITY_ANOMALY',
-    'REPLAY_ATTEMPT',
-    'RELAY_ATTACK',
-    'SUSPICIOUS_SCORE',
-  ]})
+  @Prop({
+    required: true,
+    enum: [
+      'DUPLICATE_SCAN',
+      'FAST_INTERVAL',
+      'VELOCITY_ANOMALY',
+      'REPLAY_ATTEMPT',
+      'RELAY_ATTACK',
+      'SUSPICIOUS_SCORE',
+    ],
+  })
   reasonCode: FraudReasonCode;
 
   @Prop({ required: true })

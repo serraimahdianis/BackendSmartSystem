@@ -20,6 +20,7 @@ import {
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { StudentService } from '../student/student.service';
+import { SessionService } from '../session/session.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -31,6 +32,7 @@ interface User {
 
 interface RequestWithUser {
   user: User;
+  ip?: string;
 }
 
 @ApiTags('attendance')
@@ -41,15 +43,23 @@ export class AttendanceController {
   constructor(
     private readonly attendanceService: AttendanceService,
     private readonly studentService: StudentService,
+    private readonly sessionService: SessionService,
   ) {}
 
   @Post('scan')
-  @Roles('admin', 'teacher')
+  @Roles('admin', 'teacher', 'student')
   @ApiOperation({ summary: 'Record a student scan (RFID/QR attendance)' })
   @ApiResponse({ status: 201, description: 'Attendance recorded successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
-  recordScan(@Body() createAttendanceDto: CreateAttendanceDto) {
-    return this.attendanceService.recordScan(createAttendanceDto);
+  recordScan(
+    @Body() createAttendanceDto: CreateAttendanceDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.attendanceService.recordScan(createAttendanceDto, {
+      ip: req.ip,
+      userId: req.user.userId,
+      role: req.user.role,
+    });
   }
 
   @Get('session/:sessionId')
@@ -58,13 +68,19 @@ export class AttendanceController {
   @ApiResponse({ status: 200, description: 'Attendance list for the session' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
-  findBySession(
+  async findBySession(
     @Param('sessionId') sessionId: string,
+    @Req() req: RequestWithUser,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
     page = Number(page) || 1;
-    limit = Math.min(Number(limit) || 20, 100);
+    limit = Math.min(Number(limit) || 20, 1000);
+    await this.sessionService.assertTeacherOwnsSession(
+      sessionId,
+      req.user.userId,
+      req.user.role,
+    );
     return this.attendanceService.findBySession(sessionId, page, limit);
   }
 
@@ -86,6 +102,9 @@ export class AttendanceController {
     page = Number(page) || 1;
     limit = Math.min(Number(limit) || 20, 100);
 
+    if (req.user.role === 'student' && req.user.userId !== studentId) {
+      throw new ForbiddenException('You can only view your own attendance');
+    }
     if (req.user.role === 'teacher') {
       const allowed = await this.studentService.isAssignedToTeacher(
         studentId,
@@ -120,16 +139,20 @@ export class AttendanceController {
     }
 
     // 2. If logged in as teacher and providing a studentId, check permissions
-    if (req.user && req.user.role === 'teacher' && studentId) {
-      const allowed = await this.studentService.isAssignedToTeacher(
-        studentId,
-        req.user.userId,
-      );
-      if (!allowed) {
-        throw new ForbiddenException(
-          'You do not have permission to access statistics for this student.',
+    if (req.user && req.user.role === 'teacher') {
+      if (studentId) {
+        const allowed = await this.studentService.isAssignedToTeacher(
+          studentId,
+          req.user.userId,
         );
+        if (!allowed) {
+          throw new ForbiddenException(
+            'You do not have permission to access statistics for this student.',
+          );
+        }
+        return this.attendanceService.getStats(studentId);
       }
+      return this.attendanceService.getStats(undefined, req.user.userId);
     }
 
     return this.attendanceService.getStats(studentId);
@@ -140,8 +163,14 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Get a single attendance record by ID' })
   @ApiResponse({ status: 200, description: 'Attendance record found' })
   @ApiResponse({ status: 404, description: 'Attendance record not found' })
-  findOne(@Param('id') id: string) {
-    return this.attendanceService.findOne(id);
+  async findOne(@Param('id') id: string, @Req() req: RequestWithUser) {
+    const record = await this.attendanceService.findOne(id);
+    await this.sessionService.assertTeacherOwnsSession(
+      record.sessionId.toString(),
+      req.user.userId,
+      req.user.role,
+    );
+    return record;
   }
 
   @Delete(':id')

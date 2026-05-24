@@ -25,7 +25,10 @@ export class ModuleService {
     return createdModule.save();
   }
 
-  async findAll(page: number = 1, limit: number = 20): Promise<PaginatedResult<AcademicModule>> {
+  async findAll(
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<AcademicModule>> {
     const total = await this.moduleModel.countDocuments().exec();
     const data = await this.moduleModel
       .find()
@@ -50,7 +53,11 @@ export class ModuleService {
     return module;
   }
 
-  async findByTeacher(teacherId: string, page: number = 1, limit: number = 20): Promise<PaginatedResult<AcademicModule>> {
+  async findByTeacher(
+    teacherId: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<AcademicModule>> {
     const total = await this.moduleModel.countDocuments({ teacherId }).exec();
     const data = await this.moduleModel
       .find({ teacherId })

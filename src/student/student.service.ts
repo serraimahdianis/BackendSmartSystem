@@ -123,7 +123,13 @@ export class StudentService {
     rfidCode: string,
     teacherId: string,
   ): Promise<boolean> {
-    const student = await this.studentModel.findOne({ rfidCode }).exec();
+    const query: any[] = [{ rfidCode }, { qrCode: rfidCode }, { studentId: rfidCode }];
+    if (rfidCode.length === 24) {
+      query.push({ _id: rfidCode });
+    }
+    const student = await this.studentModel.findOne({
+      $or: query,
+    }).exec();
     if (!student) return false;
     return this.isAssignedToTeacher(student._id.toString(), teacherId);
   }
@@ -137,9 +143,15 @@ export class StudentService {
   }
 
   async findByRfid(rfidCode: string): Promise<Student> {
-    const student = await this.studentModel.findOne({ rfidCode }).exec();
+    const query: any[] = [{ rfidCode }, { qrCode: rfidCode }, { studentId: rfidCode }];
+    if (rfidCode.length === 24) {
+      query.push({ _id: rfidCode });
+    }
+    const student = await this.studentModel.findOne({
+      $or: query,
+    }).exec();
     if (!student) {
-      throw new NotFoundException(`Student with RFID "${rfidCode}" not found`);
+      throw new NotFoundException(`Student with code "${rfidCode}" not found`);
     }
     return student;
   }

@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -44,10 +45,7 @@ export class ScheduleController {
   @ApiResponse({ status: 200, description: 'List of all schedules' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
-  findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
+  findAll(@Query('page') page?: number, @Query('limit') limit?: number) {
     page = Number(page) || 1;
     limit = Math.min(Number(limit) || 20, 100);
     return this.scheduleService.findAll(page, limit);
@@ -79,23 +77,32 @@ export class ScheduleController {
   }
 
   @Patch(':id')
-  @Roles('admin')
+  @Roles('admin', 'teacher')
   @ApiOperation({ summary: 'Update a schedule entry' })
   @ApiResponse({ status: 200, description: 'Schedule updated successfully' })
   @ApiResponse({ status: 404, description: 'Schedule not found' })
   update(
     @Param('id') id: string,
     @Body() updateScheduleDto: UpdateScheduleDto,
+    @Request() req: { user: { userId: string; role: string } },
   ) {
-    return this.scheduleService.update(id, updateScheduleDto);
+    return this.scheduleService.update(
+      id,
+      updateScheduleDto,
+      req.user.userId,
+      req.user.role,
+    );
   }
 
   @Delete(':id')
-  @Roles('admin')
+  @Roles('admin', 'teacher')
   @ApiOperation({ summary: 'Delete a schedule entry' })
   @ApiResponse({ status: 200, description: 'Schedule deleted successfully' })
   @ApiResponse({ status: 404, description: 'Schedule not found' })
-  remove(@Param('id') id: string) {
-    return this.scheduleService.remove(id);
+  remove(
+    @Param('id') id: string,
+    @Request() req: { user: { userId: string; role: string } },
+  ) {
+    return this.scheduleService.remove(id, req.user.userId, req.user.role);
   }
 }

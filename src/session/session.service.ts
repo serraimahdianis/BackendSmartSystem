@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -11,6 +12,11 @@ import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { ScheduleService } from '../schedule/schedule.service';
 import { EventsGateway } from '../events/events.gateway';
+import { Student, StudentDocument } from '../student/schemas/student.schema';
+import {
+  Attendance,
+  AttendanceDocument,
+} from '../attendance/schemas/attendance.schema';
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -24,6 +30,9 @@ export interface PaginatedResult<T> {
 export class SessionService {
   constructor(
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
+    @InjectModel(Student.name) private studentModel: Model<StudentDocument>,
+    @InjectModel(Attendance.name)
+    private attendanceModel: Model<AttendanceDocument>,
     private readonly scheduleService: ScheduleService,
     private readonly eventsGateway: EventsGateway,
   ) {}
@@ -33,7 +42,10 @@ export class SessionService {
     return createdSession.save();
   }
 
-  async findAll(page: number = 1, limit: number = 20): Promise<PaginatedResult<Session>> {
+  async findAll(
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<Session>> {
     const total = await this.sessionModel.countDocuments().exec();
     const data = await this.sessionModel
       .find()
@@ -50,8 +62,8 @@ export class SessionService {
     const session = await this.sessionModel
       .findById(id)
       .populate('teacherId', 'fullName email')
-      .populate('moduleId', 'name')
-      .populate('scheduleId')
+      .populate('moduleId', 'name year')
+      .populate('scheduleId', 'room dayOfWeek')
       .exec();
     if (!session) {
       throw new NotFoundException(`Session with ID "${id}" not found`);
@@ -59,18 +71,28 @@ export class SessionService {
     return session;
   }
 
-  async findByTeacher(teacherId: string, page: number = 1, limit: number = 20): Promise<PaginatedResult<Session>> {
+  async findByTeacher(
+    teacherId: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<Session>> {
     const total = await this.sessionModel.countDocuments({ teacherId }).exec();
     const data = await this.sessionModel
       .find({ teacherId })
       .skip((page - 1) * limit)
       .limit(limit)
-      .populate('moduleId', 'name')
+      .populate('moduleId', 'name year')
+      .populate('scheduleId', 'room dayOfWeek')
+      .sort({ date: -1 })
       .exec();
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findByDate(date: string, page: number = 1, limit: number = 20): Promise<PaginatedResult<Session>> {
+  async findByDate(
+    date: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<Session>> {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
@@ -86,6 +108,102 @@ export class SessionService {
       .populate('moduleId', 'name')
       .exec();
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async findByTeacherAndDate(
+    teacherId: string,
+    date: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<Session>> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const filter = {
+      teacherId,
+      date: { $gte: startOfDay, $lte: endOfDay },
+    };
+    const total = await this.sessionModel.countDocuments(filter).exec();
+    const data = await this.sessionModel
+      .find(filter)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('moduleId', 'name year')
+      .populate('scheduleId', 'room dayOfWeek')
+      .exec();
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  private async handleSessionStatusTransition(
+    session: SessionDocument,
+    oldStatus: string,
+    newStatus: string,
+  ): Promise<void> {
+    if (oldStatus !== 'active' && newStatus === 'active') {
+      // 1. Check if we already have attendance records to avoid duplicates
+      const existingCount = await this.attendanceModel
+        .countDocuments({ sessionId: session._id })
+        .exec();
+      if (existingCount === 0) {
+        const populatedSession = await this.sessionModel
+          .findById(session._id)
+          .populate('moduleId')
+          .exec();
+        if (
+          populatedSession &&
+          populatedSession.moduleId &&
+          typeof populatedSession.moduleId === 'object' &&
+          'year' in populatedSession.moduleId
+        ) {
+          const year = (populatedSession.moduleId as { year: string }).year;
+          const filter: { year: string; group?: string } = { year };
+          if (session.group && session.group.toLowerCase() !== 'whole year') {
+            filter.group = session.group;
+          }
+          const students = await this.studentModel.find(filter).exec();
+          if (students.length > 0) {
+            const absentRecords = students.map((s) => ({
+              sessionId: session._id,
+              studentId: s._id,
+              status: 'absent',
+              scanTime: null,
+              method: 'MANUAL',
+            }));
+            await this.attendanceModel.insertMany(absentRecords);
+          }
+        }
+      }
+
+      // 2. Emit session:started WebSocket event
+      let moduleName = 'Unknown';
+      const populated = await this.sessionModel
+        .findById(session._id)
+        .populate('moduleId', 'name')
+        .exec();
+      if (
+        populated &&
+        typeof populated.moduleId === 'object' &&
+        'name' in populated.moduleId
+      ) {
+        moduleName = (populated.moduleId as { name: string }).name;
+      }
+
+      this.eventsGateway.emitSessionStarted({
+        sessionId: session._id.toString(),
+        moduleId: session.moduleId.toString(),
+        moduleName,
+        group: session.group || '',
+        teacherId: session.teacherId.toString(),
+        startTime: session.startTime,
+      });
+    } else if (oldStatus === 'active' && newStatus === 'closed') {
+      this.eventsGateway.emitSessionEnded({
+        sessionId: session._id.toString(),
+        teacherId: session.teacherId.toString(),
+      });
+    }
   }
 
   async startSession(scheduleId: string, teacherId: string): Promise<Session> {
@@ -133,19 +251,7 @@ export class SessionService {
 
     const saved = await createdSession.save();
 
-    const populated = await this.sessionModel
-      .findById(saved._id)
-      .populate('moduleId', 'name')
-      .exec();
-
-    this.eventsGateway.emitSessionStarted({
-      sessionId: saved._id.toString(),
-      moduleId: schedule.moduleId.toString(),
-      moduleName: (populated?.moduleId as any)?.name || 'Unknown',
-      group: schedule.group || '',
-      teacherId,
-      startTime: schedule.startTime,
-    });
+    await this.handleSessionStatusTransition(saved, 'planned', 'active');
 
     return saved;
   }
@@ -163,38 +269,72 @@ export class SessionService {
       );
     }
 
+    const oldStatus = session.status;
     session.status = 'closed';
     const saved = await session.save();
 
-    this.eventsGateway.emitSessionEnded({
-      sessionId: saved._id.toString(),
-      teacherId,
-    });
+    await this.handleSessionStatusTransition(saved, oldStatus, 'closed');
 
     return saved;
   }
 
-  async updateStatus(id: string, status: string): Promise<Session> {
-    const updatedSession = await this.sessionModel
-      .findByIdAndUpdate(id, { status }, { returnDocument: 'after' })
-      .exec();
-    if (!updatedSession) {
+  async updateStatus(
+    id: string,
+    status: string,
+    userId: string,
+    role: string,
+  ): Promise<Session> {
+    const session = await this.sessionModel.findById(id).exec();
+    if (!session) {
       throw new NotFoundException(`Session with ID "${id}" not found`);
     }
-    return updatedSession;
+    if (role === 'teacher' && session.teacherId.toString() !== userId) {
+      throw new ForbiddenException('You do not own this session');
+    }
+    const oldStatus = session.status;
+    session.status = status;
+    const saved = await session.save();
+
+    await this.handleSessionStatusTransition(saved, oldStatus, status);
+
+    return saved;
   }
 
   async update(
     id: string,
     updateSessionDto: UpdateSessionDto,
+    userId: string,
+    role: string,
   ): Promise<Session> {
-    const updatedSession = await this.sessionModel
-      .findByIdAndUpdate(id, updateSessionDto, { returnDocument: 'after' })
-      .exec();
-    if (!updatedSession) {
+    const session = await this.sessionModel.findById(id).exec();
+    if (!session) {
       throw new NotFoundException(`Session with ID "${id}" not found`);
     }
-    return updatedSession;
+    if (role === 'teacher' && session.teacherId.toString() !== userId) {
+      throw new ForbiddenException('You do not own this session');
+    }
+    const oldStatus = session.status;
+    Object.assign(session, updateSessionDto);
+    const saved = await session.save();
+
+    await this.handleSessionStatusTransition(saved, oldStatus, saved.status);
+
+    return saved;
+  }
+
+  async assertTeacherOwnsSession(
+    sessionId: string,
+    userId: string,
+    role: string,
+  ): Promise<void> {
+    if (role === 'admin') return;
+    const session = await this.sessionModel.findById(sessionId).exec();
+    if (!session) {
+      throw new NotFoundException(`Session with ID "${sessionId}" not found`);
+    }
+    if (session.teacherId.toString() !== userId) {
+      throw new ForbiddenException('You do not own this session');
+    }
   }
 
   async remove(id: string): Promise<void> {

@@ -80,10 +80,7 @@ export class TeacherController {
   })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
-  findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
+  findAll(@Query('page') page?: number, @Query('limit') limit?: number) {
     page = Number(page) || 1;
     limit = Math.min(Number(limit) || 20, 100);
     return this.teacherService.findAll(page, limit);

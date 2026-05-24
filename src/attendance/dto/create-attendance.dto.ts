@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsMongoId, IsOptional, IsDateString, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsMongoId,
+  IsOptional,
+  IsDateString,
+  IsString,
+} from 'class-validator';
 
 export class CreateAttendanceDto {
   @ApiProperty({

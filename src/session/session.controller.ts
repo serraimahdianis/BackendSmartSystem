@@ -92,6 +92,29 @@ export class SessionController {
     return this.sessionService.findAll(page, limit);
   }
 
+  @Get('teacher/:teacherId/today')
+  @Roles('admin', 'teacher')
+  @ApiOperation({ summary: "Get today's sessions for a teacher" })
+  @ApiResponse({
+    status: 200,
+    description: "Today's sessions for the given teacher",
+  })
+  findByTeacherToday(
+    @Param('teacherId') teacherId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+    const today = new Date().toISOString().split('T')[0];
+    return this.sessionService.findByTeacherAndDate(
+      teacherId,
+      today,
+      page,
+      limit,
+    );
+  }
+
   @Get('teacher/:teacherId')
   @Roles('admin', 'teacher')
   @ApiOperation({ summary: 'Get all sessions for a teacher' })
@@ -132,8 +155,17 @@ export class SessionController {
   })
   @ApiResponse({ status: 200, description: 'Session status updated' })
   @ApiResponse({ status: 404, description: 'Session not found' })
-  updateStatus(@Param('id') id: string, @Body('status') status: string) {
-    return this.sessionService.updateStatus(id, status);
+  updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: string,
+    @Request() req: { user: { userId: string; role: string } },
+  ) {
+    return this.sessionService.updateStatus(
+      id,
+      status,
+      req.user.userId,
+      req.user.role,
+    );
   }
 
   @Patch(':id')
@@ -141,8 +173,17 @@ export class SessionController {
   @ApiOperation({ summary: 'Update a session' })
   @ApiResponse({ status: 200, description: 'Session updated successfully' })
   @ApiResponse({ status: 404, description: 'Session not found' })
-  update(@Param('id') id: string, @Body() updateSessionDto: UpdateSessionDto) {
-    return this.sessionService.update(id, updateSessionDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateSessionDto: UpdateSessionDto,
+    @Request() req: { user: { userId: string; role: string } },
+  ) {
+    return this.sessionService.update(
+      id,
+      updateSessionDto,
+      req.user.userId,
+      req.user.role,
+    );
   }
 
   @Delete(':id')

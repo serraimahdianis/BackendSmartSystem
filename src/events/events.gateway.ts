@@ -1,82 +1,133 @@
-﻿import { UnauthorizedException } from '@nestjs/common';
 import {
   WebSocketGateway,
-  WebSocketServer,
-  SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
 import * as jwt from 'jsonwebtoken';
+import { IncomingMessage } from 'http';
+import { RoomManager, WSClient } from './room-manager';
+
+interface JwtPayload {
+  sub: string;
+  role: string;
+  iat?: number;
+  exp?: number;
+}
+
+interface AuthenticatedClient extends WSClient {
+  user: JwtPayload;
+}
+
+const roomManager = new RoomManager();
 
 @WebSocketGateway({
-  cors: {
-    origin: '*',
-    credentials: true,
-  },
-  namespace: '/',
+  cors: { origin: '*', credentials: true },
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  @WebSocketServer()
-  server: Server;
+  handleConnection(client: WSClient, ...args: any[]) {
+    const req = args[0] as IncomingMessage | undefined;
+    const reqUrl = req?.url || client.url || '';
+    const url = new URL(reqUrl, 'http://localhost');
+    const token = url.searchParams.get('token');
 
-  handleConnection(client: Socket) {
-    const token = client.handshake.auth?.token || client.handshake.query?.token;
     if (!token) {
-      client.emit('error', { message: 'Authentication required' });
-      client.disconnect();
+      this.sendError(client, 'Authentication required');
+      client.close();
       return;
     }
 
     try {
-      const secret = process.env.JWT_SECRET || 'fallback_secret';
-      const decoded = jwt.verify(token as string, secret);
-      (client as any).user = decoded;
-      console.log(`Client authenticated: ${client.id} (${(decoded as any).role || 'unknown'})`);
-    } catch (err) {
-      client.emit('error', { message: 'Invalid or expired token' });
-      client.disconnect();
+      const secret = process.env.JWT_SECRET;
+      if (!secret) {
+        this.sendError(client, 'Server JWT secret not configured');
+        client.close();
+        return;
+      }
+      const decoded = jwt.verify(token, secret) as JwtPayload;
+      (client as AuthenticatedClient).user = decoded;
+      console.log(`Client authenticated (${decoded.role || 'unknown'})`);
+    } catch {
+      this.sendError(client, 'Invalid or expired token');
+      client.close();
+      return;
+    }
+
+    client.on('message', (raw: unknown) => {
+      try {
+        const text = raw instanceof Buffer ? raw.toString() : String(raw);
+        const msg = JSON.parse(text) as { event: string; data: string };
+        this.routeMessage(client, msg.event, msg.data);
+      } catch {
+        this.sendError(client, 'Invalid message format');
+      }
+    });
+
+    client.on('close', () => {
+      roomManager.removeClient(client);
+    });
+  }
+
+  handleDisconnect(client: WSClient) {
+    roomManager.removeClient(client);
+  }
+
+  private getRole(client: WSClient): string | undefined {
+    return (client as AuthenticatedClient).user?.role;
+  }
+
+  private routeMessage(client: WSClient, event: string, data: string) {
+    const role = this.getRole(client);
+
+    switch (event) {
+      case 'join:session':
+        if (role !== 'teacher' && role !== 'admin') {
+          this.sendError(client, 'Only teachers can monitor sessions');
+          return;
+        }
+        roomManager.join(`session:${data}`, client);
+        break;
+      case 'leave:session':
+        if (role !== 'teacher' && role !== 'admin') {
+          this.sendError(client, 'Only teachers can monitor sessions');
+          return;
+        }
+        roomManager.leave(`session:${data}`, client);
+        break;
+      case 'join:teacher':
+        if (role !== 'teacher' && role !== 'admin') {
+          this.sendError(client, 'Only teachers can monitor teacher rooms');
+          return;
+        }
+        roomManager.join(`teacher:${data}`, client);
+        break;
+      case 'leave:teacher':
+        if (role !== 'teacher' && role !== 'admin') {
+          this.sendError(client, 'Only teachers can monitor teacher rooms');
+          return;
+        }
+        roomManager.leave(`teacher:${data}`, client);
+        break;
+      case 'join:group':
+        if (role !== 'student') {
+          this.sendError(client, 'Only students can join group rooms');
+          return;
+        }
+        roomManager.join(`group:${data}`, client);
+        break;
+      case 'leave:group':
+        if (role !== 'student') {
+          this.sendError(client, 'Only students can join group rooms');
+          return;
+        }
+        roomManager.leave(`group:${data}`, client);
+        break;
+      default:
+        this.sendError(client, `Unknown event: ${event}`);
     }
   }
 
-  handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
-  }
-
-  @SubscribeMessage('join:session')
-  handleJoinSession(client: Socket, sessionId: string) {
-    client.join(`session:${sessionId}`);
-    console.log(`${client.id} joined session:${sessionId}`);
-  }
-
-  @SubscribeMessage('leave:session')
-  handleLeaveSession(client: Socket, sessionId: string) {
-    client.leave(`session:${sessionId}`);
-    console.log(`${client.id} left session:${sessionId}`);
-  }
-
-  @SubscribeMessage('join:teacher')
-  handleJoinTeacher(client: Socket, teacherId: string) {
-    client.join(`teacher:${teacherId}`);
-    console.log(`${client.id} joined teacher:${teacherId}`);
-  }
-
-  @SubscribeMessage('leave:teacher')
-  handleLeaveTeacher(client: Socket, teacherId: string) {
-    client.leave(`teacher:${teacherId}`);
-    console.log(`${client.id} left teacher:${teacherId}`);
-  }
-
-  @SubscribeMessage('join:group')
-  handleJoinGroup(client: Socket, group: string) {
-    client.join(`group:${group}`);
-    console.log(`${client.id} joined group:${group}`);
-  }
-
-  @SubscribeMessage('leave:group')
-  handleLeaveGroup(client: Socket, group: string) {
-    client.leave(`group:${group}`);
-    console.log(`${client.id} left group:${group}`);
+  private sendError(client: WSClient, message: string) {
+    roomManager.send(client, 'error', { message });
   }
 
   emitAttendanceScan(payload: {
@@ -86,7 +137,11 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     status: string;
     scanTime: string;
   }) {
-    this.server.to(`session:${payload.sessionId}`).emit('attendance:scan', payload);
+    roomManager.broadcast(
+      `session:${payload.sessionId}`,
+      'attendance:scan',
+      payload,
+    );
   }
 
   emitAttendanceStatusChanged(payload: {
@@ -95,17 +150,30 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     oldStatus: string;
     newStatus: string;
   }) {
-    this.server.to(`session:${payload.sessionId}`).emit('attendance:status-changed', payload);
+    roomManager.broadcast(
+      `session:${payload.sessionId}`,
+      'attendance:status-changed',
+      payload,
+    );
   }
 
   emitFraudAlert(payload: {
     sessionId: string;
     studentId: string;
+    teacherId: string;
     reason: string;
     riskScore: number;
   }) {
-    this.server.to(`session:${payload.sessionId}`).emit('attendance:fraud-alert', payload);
-    this.server.to(`teacher:${payload.sessionId}`).emit('attendance:fraud-alert', payload);
+    roomManager.broadcast(
+      `session:${payload.sessionId}`,
+      'attendance:fraud-alert',
+      payload,
+    );
+    roomManager.broadcast(
+      `teacher:${payload.teacherId}`,
+      'attendance:fraud-alert',
+      payload,
+    );
   }
 
   emitSessionStarted(payload: {
@@ -116,15 +184,24 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     teacherId: string;
     startTime: string;
   }) {
-    this.server.to(`group:${payload.group}`).emit('session:started', payload);
-    this.server.to(`teacher:${payload.teacherId}`).emit('session:started', payload);
+    roomManager.broadcast(`group:${payload.group}`, 'session:started', payload);
+    roomManager.broadcast(
+      `teacher:${payload.teacherId}`,
+      'session:started',
+      payload,
+    );
   }
 
-  emitSessionEnded(payload: {
-    sessionId: string;
-    teacherId: string;
-  }) {
-    this.server.to(`session:${payload.sessionId}`).emit('session:ended', payload);
-    this.server.to(`teacher:${payload.teacherId}`).emit('session:ended', payload);
+  emitSessionEnded(payload: { sessionId: string; teacherId: string }) {
+    roomManager.broadcast(
+      `session:${payload.sessionId}`,
+      'session:ended',
+      payload,
+    );
+    roomManager.broadcast(
+      `teacher:${payload.teacherId}`,
+      'session:ended',
+      payload,
+    );
   }
 }

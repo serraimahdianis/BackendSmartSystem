@@ -18,7 +18,6 @@ import {
   ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { Student } from './schemas/student.schema';
 import { StudentService } from './student.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
@@ -63,10 +62,16 @@ export class StudentController {
     @Request() req?: { user: { userId: string; role: string } },
   ) {
     page = Number(page) || 1;
-    limit = Math.min(Number(limit) || 20, 100);
+    limit = Math.min(Number(limit) || 20, 500);
 
     if (req?.user?.role === 'teacher') {
-      return this.studentService.findForTeacher(req.user.userId, year, group, page, limit);
+      return this.studentService.findForTeacher(
+        req.user.userId,
+        year,
+        group,
+        page,
+        limit,
+      );
     }
 
     return this.studentService.findAll(year, group, page, limit);
@@ -74,7 +79,7 @@ export class StudentController {
 
   @Get('rfid/:rfidCode')
   @Roles('admin', 'teacher')
-  @ApiOperation({ summary: 'Find student by RFID code' })
+  @ApiOperation({ summary: 'Find student by RFID or QR code' })
   @ApiResponse({ status: 200, description: 'Student found' })
   @ApiResponse({ status: 404, description: 'Student not found' })
   async findByRfid(
@@ -104,6 +109,9 @@ export class StudentController {
     @Param('id') id: string,
     @Request() req: { user: { userId: string; role: string } },
   ) {
+    if (req.user.role === 'student' && req.user.userId !== id) {
+      throw new ForbiddenException('You can only view your own profile');
+    }
     if (req.user.role === 'teacher') {
       const allowed = await this.studentService.isAssignedToTeacher(
         id,

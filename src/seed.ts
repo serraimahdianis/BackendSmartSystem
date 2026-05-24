@@ -112,16 +112,7 @@ async function seed() {
   // ─── STUDENTS ─────────────────────────────────────────────────────────────
   console.log('👨‍🎓 Admin creating Mock Students...');
   const studentData = [
-    {
-      fullName: 'SERRAI MAHDI ANIS',
-      birthday: '26062003',
-      email: 'm.serrai@univ-setif.dz',
-      studentId: '212135055186',
-      rfidCode: '0007637223',
-      group: '01',
-      year: 'M2',
-      speciality: 'IDTW',
-    },
+    // --- Group 2A (L2) ---
     {
       fullName: 'Amine Khelifi',
       birthday: '15031999',
@@ -141,6 +132,98 @@ async function seed() {
       group: '2A',
       year: 'L2',
       speciality: 'Computer Science',
+    },
+    {
+      fullName: 'Karim Zeggai',
+      birthday: '12122000',
+      email: 'k.zeggai@student.dz',
+      studentId: '1003',
+      rfidCode: 'RFID-2A-003',
+      group: '2A',
+      year: 'L2',
+      speciality: 'Computer Science',
+    },
+    {
+      fullName: 'Meriem Bensalah',
+      birthday: '05042003',
+      email: 'm.bensalah@student.dz',
+      studentId: '1004',
+      rfidCode: 'RFID-2A-004',
+      group: '2A',
+      year: 'L2',
+      speciality: 'Computer Science',
+    },
+    {
+      fullName: 'Sofiane Touati',
+      birthday: '18092002',
+      email: 's.touati@student.dz',
+      studentId: '1005',
+      rfidCode: 'RFID-2A-005',
+      group: '2A',
+      year: 'L2',
+      speciality: 'Computer Science',
+    },
+    // --- Group 2B (L2) ---
+    {
+      fullName: 'Youcef Belhadj',
+      birthday: '20012003',
+      email: 'y.belhadj@student.dz',
+      studentId: '1006',
+      rfidCode: 'RFID-2B-006',
+      group: '2B',
+      year: 'L2',
+      speciality: 'Computer Science',
+    },
+    {
+      fullName: 'Rania Hammoudi',
+      birthday: '14072002',
+      email: 'r.hammoudi@student.dz',
+      studentId: '1007',
+      rfidCode: 'RFID-2B-007',
+      group: '2B',
+      year: 'L2',
+      speciality: 'Computer Science',
+    },
+    {
+      fullName: 'Khaled Mimouni',
+      birthday: '30112001',
+      email: 'k.mimouni@student.dz',
+      studentId: '1008',
+      rfidCode: 'RFID-2B-008',
+      group: '2B',
+      year: 'L2',
+      speciality: 'Computer Science',
+    },
+    {
+      fullName: 'Yousra Cheikh',
+      birthday: '03022003',
+      email: 'y.cheikh@student.dz',
+      studentId: '1009',
+      rfidCode: 'RFID-2B-009',
+      group: '2B',
+      year: 'L2',
+      speciality: 'Computer Science',
+    },
+    {
+      fullName: 'Oussama Boutaleb',
+      birthday: '25052002',
+      email: 'o.boutaleb@student.dz',
+      studentId: '1010',
+      rfidCode: 'RFID-2B-010',
+      group: '2B',
+      year: 'L2',
+      speciality: 'Computer Science',
+    },
+    // --- Group 01 (M2) ---
+    {
+      fullName: 'SERRAI MAHDI ANIS',
+      birthday: '26062003',
+      email: 'm.serrai@univ-setif.dz',
+      studentId: '212135055186',
+      rfidCode: '0007637223',
+      group: '01',
+      year: 'M2',
+      speciality: 'IDTW',
     },
     {
       fullName: 'Yacine Belkacem',
@@ -163,16 +246,6 @@ async function seed() {
       speciality: 'IDTW',
     },
     {
-      fullName: 'Karim Zeggai',
-      birthday: '12122000',
-      email: 'k.zeggai@student.dz',
-      studentId: '1003',
-      rfidCode: 'RFID-2A-003',
-      group: '2A',
-      year: 'L2',
-      speciality: 'Computer Science',
-    },
-    {
       fullName: 'Nour El Houda',
       birthday: '01012004',
       email: 'n.houda@student.dz',
@@ -181,6 +254,67 @@ async function seed() {
       group: '01',
       year: 'M2',
       speciality: 'IDTW',
+    },
+    {
+      fullName: 'Ryad Merabet',
+      birthday: '15082001',
+      email: 'r.merabet@student.dz',
+      studentId: '2004',
+      rfidCode: 'RFID-01-011',
+      group: '01',
+      year: 'M2',
+      speciality: 'IDTW',
+    },
+    // --- Group 02 (M2) ---
+    {
+      fullName: 'Selma Ghalem',
+      birthday: '12032002',
+      email: 's.ghalem@student.dz',
+      studentId: '2005',
+      rfidCode: 'RFID-02-012',
+      group: '02',
+      year: 'M2',
+      speciality: 'SE',
+    },
+    {
+      fullName: 'Mourad Haddad',
+      birthday: '08122001',
+      email: 'm.haddad@student.dz',
+      studentId: '2006',
+      rfidCode: 'RFID-02-013',
+      group: '02',
+      year: 'M2',
+      speciality: 'SE',
+    },
+    {
+      fullName: 'Feriel Chaib',
+      birthday: '19062002',
+      email: 'f.chaib@student.dz',
+      studentId: '2007',
+      rfidCode: 'RFID-02-014',
+      group: '02',
+      year: 'M2',
+      speciality: 'SE',
+    },
+    {
+      fullName: 'Zaki Bensenouci',
+      birthday: '22102001',
+      email: 'z.bensenouci@student.dz',
+      studentId: '2008',
+      rfidCode: 'RFID-02-015',
+      group: '02',
+      year: 'M2',
+      speciality: 'SE',
+    },
+    {
+      fullName: 'Ines Madani',
+      birthday: '04042002',
+      email: 'i.madani@student.dz',
+      studentId: '2009',
+      rfidCode: 'RFID-02-016',
+      group: '02',
+      year: 'M2',
+      speciality: 'SE',
     },
   ];
 
@@ -310,6 +444,17 @@ async function seed() {
       room: 'Amphi A',
     },
     {
+      teacherId: teacherIds[0],
+      moduleId: moduleObjIds[1],
+      type: 'td',
+      year: 'L2',
+      group: '2A',
+      dayOfWeek: todayDayName,
+      startTime: '09:45',
+      endTime: '11:15',
+      room: 'Lab 01',
+    },
+    {
       teacherId: teacherIds[1],
       moduleId: moduleObjIds[2],
       type: 'td',
@@ -321,6 +466,17 @@ async function seed() {
       room: 'Lab 05',
     },
     {
+      teacherId: teacherIds[1],
+      moduleId: moduleObjIds[3],
+      type: 'cours',
+      year: 'M2',
+      group: 'Whole Year',
+      dayOfWeek: todayDayName,
+      startTime: '11:45',
+      endTime: '13:15',
+      room: 'Amphi C',
+    },
+    {
       teacherId: teacherIds[2],
       moduleId: moduleObjIds[4],
       type: 'cours',
@@ -330,6 +486,17 @@ async function seed() {
       startTime: '13:00',
       endTime: '14:30',
       room: 'Amphi B',
+    },
+    {
+      teacherId: teacherIds[2],
+      moduleId: moduleObjIds[4],
+      type: 'td',
+      year: 'L2',
+      group: '2B',
+      dayOfWeek: todayDayName,
+      startTime: '14:45',
+      endTime: '16:15',
+      room: 'Room 12',
     },
   ];
 
@@ -363,7 +530,11 @@ async function seed() {
     );
 
     console.log('📡 Scanning students...');
-    for (const sid of studentObjIds) {
+    for (let j = 0; j < studentObjIds.length; j++) {
+      const sid = studentObjIds[j];
+      if (studentData[j].year !== sData.year) continue;
+      if (sData.group !== 'Whole Year' && studentData[j].group !== sData.group)
+        continue;
       const roll = Math.random();
       const status = roll < 0.7 ? 'present' : roll < 0.9 ? 'late' : 'absent';
       await apiRequest<unknown>(
@@ -412,12 +583,16 @@ async function seed() {
         endTime: sData.endTime,
         type: sData.type,
         group: sData.group,
-        status: 'closed',
+        status: 'active',
       },
       token,
     );
 
-    for (const sid of studentObjIds) {
+    for (let j = 0; j < studentObjIds.length; j++) {
+      const sid = studentObjIds[j];
+      if (studentData[j].year !== sData.year) continue;
+      if (sData.group !== 'Whole Year' && studentData[j].group !== sData.group)
+        continue;
       const roll = Math.random();
       // Most students are present in history
       const status = roll < 0.85 ? 'present' : roll < 0.95 ? 'late' : 'absent';
@@ -432,6 +607,14 @@ async function seed() {
         token,
       );
     }
+
+    // End the historical session
+    await apiRequest<unknown>(
+      'POST',
+      `/sessions/${historicalSession._id}/end`,
+      undefined,
+      token,
+    );
   }
 
   console.log('\n====================================');

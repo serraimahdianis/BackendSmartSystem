@@ -59,8 +59,9 @@ const ctx: {
 const TEST_ID = Date.now().toString().slice(-6);
 const TEACHER_EMAIL = `test.e2e.${TEST_ID}@univ-setif.dz`;
 const TEACHER_PASSWORD = 'TestPass123';
-const STUDENT_ID = `ST-E2E-${TEST_ID}`;
+const STUDENT_ID = `1${TEST_ID}`.slice(0, 10);
 const STUDENT_BIRTHDAY = '15031999';
+const STUDENT_PASSWORD = `sciences${STUDENT_BIRTHDAY}`;
 const RFID_CODE = `RFID-E2E-${TEST_ID}`;
 const QR_CODE = `QR-E2E-${TEST_ID}`;
 
@@ -322,7 +323,7 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
     it('should login student with studentId + birthday', async () => {
       const { status, data } = await api('POST', '/auth/student/login', {
         studentId: STUDENT_ID,
-        password: STUDENT_BIRTHDAY,
+        password: STUDENT_PASSWORD,
       });
 
       console.log('  📋 Student login response:', status, data);
@@ -351,7 +352,7 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
       );
 
       expect(status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
     });
 
     it('should find student by RFID code (simulates RFID scanner)', async () => {
@@ -390,7 +391,7 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
       );
 
       expect(status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
     });
   });
 
@@ -438,7 +439,7 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
       );
 
       expect(status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
     });
 
     it('should get module by ID', async () => {
@@ -462,7 +463,7 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
       );
 
       expect(status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
     });
   });
 
@@ -505,7 +506,7 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
       );
 
       expect(status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
     });
 
     it('should get schedules by teacher', async () => {
@@ -517,7 +518,7 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
       );
 
       expect(status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
     });
   });
 
@@ -577,7 +578,7 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
       );
 
       expect(status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
     });
   });
 
@@ -662,7 +663,7 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
       );
 
       expect(status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
     });
 
     it('should get attendance history for the student', async () => {
@@ -680,7 +681,7 @@ describe('Smart Attendance System — Full E2E Workflow', () => {
       );
 
       expect(status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(Array.isArray(data.data)).toBe(true);
     });
 
     it('should close the session after attendance is complete', async () => {

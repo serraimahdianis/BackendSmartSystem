@@ -9,11 +9,21 @@ export type AttendanceDocument = HydratedDocument<Attendance>;
 @Schema({ timestamps: true })
 export class Attendance {
   @ApiProperty({ example: '60d5ec49f1b2c72b9c8e4a1d' })
-  @Prop({ type: Types.ObjectId, ref: Session.name, required: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: Session.name,
+    required: true,
+    index: true,
+  })
   sessionId: Types.ObjectId;
 
   @ApiProperty({ example: '60d5ec49f1b2c72b9c8e4a1e' })
-  @Prop({ type: Types.ObjectId, ref: Student.name, required: true, index: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: Student.name,
+    required: true,
+    index: true,
+  })
   studentId: Types.ObjectId;
 
   @ApiProperty({ example: 'present', enum: ['present', 'late', 'absent'] })
@@ -24,7 +34,11 @@ export class Attendance {
   @Prop({ index: true })
   scanTime: Date;
 
-  @ApiProperty({ example: 'RFID', enum: ['RFID', 'QR', 'MANUAL'], required: false })
+  @ApiProperty({
+    example: 'RFID',
+    enum: ['RFID', 'QR', 'MANUAL'],
+    required: false,
+  })
   @Prop({ enum: ['RFID', 'QR', 'MANUAL'], default: 'RFID' })
   method: string;
 

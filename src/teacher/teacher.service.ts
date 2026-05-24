@@ -24,7 +24,10 @@ export class TeacherService {
     return createdTeacher.save();
   }
 
-  async findAll(page: number = 1, limit: number = 20): Promise<PaginatedResult<Teacher>> {
+  async findAll(
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<Teacher>> {
     const total = await this.teacherModel.countDocuments().exec();
     const data = await this.teacherModel
       .find()

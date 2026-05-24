@@ -163,10 +163,14 @@ export class AuthService {
 
   // ─── ADMIN LOGIN ─────────────────────────────────────────
   loginAdmin(email: string, password: string) {
-    const adminEmail =
-      this.configService.get<string>('ADMIN_EMAIL') || 'admin@admin.com';
-    const adminPassword =
-      this.configService.get<string>('ADMIN_PASSWORD') || 'admin123';
+    const adminEmail = this.configService.get<string>('ADMIN_EMAIL');
+    const adminPassword = this.configService.get<string>('ADMIN_PASSWORD');
+
+    if (!adminEmail || !adminPassword) {
+      throw new UnauthorizedException(
+        'Admin credentials not configured on server',
+      );
+    }
 
     if (email !== adminEmail || password !== adminPassword) {
       throw new UnauthorizedException('Invalid admin credentials');

@@ -2,9 +2,11 @@
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { WsAdapter } from '@nestjs/platform-ws';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   // Enable CORS
   app.enableCors();
@@ -41,6 +43,8 @@ async function bootstrap() {
   console.log(
     'Application running on: http://localhost:' + (process.env.PORT ?? 3000),
   );
-  console.log('Swagger docs: http://localhost:' + (process.env.PORT ?? 3000) + '/api');
+  console.log(
+    'Swagger docs: http://localhost:' + (process.env.PORT ?? 3000) + '/api',
+  );
 }
 void bootstrap();

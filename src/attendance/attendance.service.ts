@@ -1,8 +1,21 @@
-import { Injectable, NotFoundException, forwardRef, Inject, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  forwardRef,
+  Inject,
+  BadRequestException,
+  ForbiddenException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Attendance, AttendanceDocument } from './schemas/attendance.schema';
 import { Student, StudentDocument } from '../student/schemas/student.schema';
+import { Session, SessionDocument } from '../session/schemas/session.schema';
+import {
+  Schedule,
+  ScheduleDocument,
+} from '../schedule/schemas/schedule.schema';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { EventsGateway } from '../events/events.gateway';
 import { NonceService } from '../nonce/nonce.service';
@@ -23,6 +36,10 @@ export class AttendanceService {
     private attendanceModel: Model<AttendanceDocument>,
     @InjectModel(Student.name)
     private studentModel: Model<StudentDocument>,
+    @InjectModel(Session.name)
+    private sessionModel: Model<SessionDocument>,
+    @InjectModel(Schedule.name)
+    private scheduleModel: Model<ScheduleDocument>,
     @Inject(forwardRef(() => EventsGateway))
     private eventsGateway: EventsGateway,
     private nonceService: NonceService,
@@ -31,7 +48,7 @@ export class AttendanceService {
 
   async recordScan(
     createAttendanceDto: CreateAttendanceDto,
-    req?: { ip?: string },
+    req?: { ip?: string; userId?: string; role?: string },
   ): Promise<Attendance> {
     if (createAttendanceDto.nonce) {
       const valid = this.nonceService.verify(
@@ -39,7 +56,79 @@ export class AttendanceService {
         createAttendanceDto.sessionId,
       );
       if (!valid) {
-        throw new BadRequestException('Invalid or expired QR code. Please scan again.');
+        throw new BadRequestException(
+          'Invalid or expired QR code. Please scan again.',
+        );
+      }
+    }
+
+    const sessionIdOid = new Types.ObjectId(createAttendanceDto.sessionId);
+    const studentIdOid = new Types.ObjectId(createAttendanceDto.studentId);
+
+    const session = await this.sessionModel.findById(sessionIdOid).exec();
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+    if (session.status !== 'active') {
+      throw new BadRequestException('Session is not active');
+    }
+    if (req?.role === 'teacher' && req?.userId) {
+      if (session.teacherId.toString() !== req.userId) {
+        throw new ForbiddenException('You do not own this session');
+      }
+    }
+
+    // Enforce that students can only record attendance for themselves
+    if (req?.role === 'student' && req?.userId) {
+      if (studentIdOid.toString() !== req.userId) {
+        throw new ForbiddenException('You can only record your own attendance');
+      }
+    }
+
+    const student = await this.studentModel.findById(studentIdOid).exec();
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    // Skip group/year validation for teacher-initiated scans (RFID from
+    // dashboard, MANUAL status overrides). Teachers/admins own the session and
+    // explicitly choose which students to record. The validation only
+    // applies to student self-scans (QR from the student app).
+    const isTeacherInitiated =
+      req?.role === 'teacher' ||
+      req?.role === 'admin' ||
+      createAttendanceDto.method === 'MANUAL';
+
+    if (!isTeacherInitiated) {
+      if (session.scheduleId) {
+        const schedule = await this.scheduleModel
+          .findById(session.scheduleId)
+          .exec();
+        if (schedule) {
+          if (student.year !== schedule.year) {
+            throw new ForbiddenException(
+              'Student year does not match this session',
+            );
+          }
+          if (
+            schedule.group &&
+            schedule.group.toLowerCase() !== 'whole year' &&
+            student.group.toLowerCase() !== schedule.group.toLowerCase()
+          ) {
+            throw new ForbiddenException(
+              'Student group does not match this session',
+            );
+          }
+        }
+      } else if (session.group) {
+        if (
+          session.group.toLowerCase() !== 'whole year' &&
+          student.group.toLowerCase() !== session.group.toLowerCase()
+        ) {
+          throw new ForbiddenException(
+            'Student group does not match this session',
+          );
+        }
       }
     }
 
@@ -48,14 +137,14 @@ export class AttendanceService {
     }
 
     const scanDate = new Date(createAttendanceDto.scanTime);
-    const sessionIdOid = new Types.ObjectId(createAttendanceDto.sessionId);
-    const studentIdOid = new Types.ObjectId(createAttendanceDto.studentId);
 
     const fraudCheck = await this.antiFraudService.checkAndRecord({
       sessionId: createAttendanceDto.sessionId,
       studentId: createAttendanceDto.studentId,
+      teacherId: session.teacherId.toString(),
       scanTime: scanDate,
-      method: (createAttendanceDto.method as 'RFID' | 'QR' | 'MANUAL') || 'RFID',
+      method:
+        (createAttendanceDto.method as 'RFID' | 'QR' | 'MANUAL') || 'RFID',
       deviceId: createAttendanceDto.deviceId,
       ipAddress: createAttendanceDto.ipAddress || req?.ip,
     });
@@ -68,16 +157,32 @@ export class AttendanceService {
       if (fraudCheck.rejected) {
         return existing;
       }
+
+      if (
+        createAttendanceDto.method !== 'MANUAL' &&
+        (existing.status === 'present' || existing.status === 'late') &&
+        (createAttendanceDto.status === 'present' ||
+          createAttendanceDto.status === 'late')
+      ) {
+        throw new ConflictException(
+          'Student has already scanned for this session.',
+        );
+      }
+
       const oldStatus = existing.status;
       existing.status = createAttendanceDto.status;
       existing.scanTime = scanDate;
       existing.riskScore = (existing.riskScore || 0) + fraudCheck.riskScore;
       if (fraudCheck.fraudEvent?.riskScore) {
-        existing.fraudFlags = [...new Set([...(existing.fraudFlags || []), fraudCheck.fraudEvent.reasonCode])];
+        existing.fraudFlags = [
+          ...new Set([
+            ...(existing.fraudFlags || []),
+            fraudCheck.fraudEvent.reasonCode,
+          ]),
+        ];
       }
       const saved = await existing.save();
 
-      const student = await this.studentModel.findById(studentIdOid).select('fullName').exec();
       this.eventsGateway.emitAttendanceStatusChanged({
         sessionId: createAttendanceDto.sessionId,
         studentId: createAttendanceDto.studentId,
@@ -103,15 +208,16 @@ export class AttendanceService {
       deviceId: createAttendanceDto.deviceId,
       ipAddress: createAttendanceDto.ipAddress || req?.ip,
       riskScore: fraudCheck.riskScore,
-      fraudFlags: fraudCheck.fraudEvent ? [fraudCheck.fraudEvent.reasonCode] : [],
+      fraudFlags: fraudCheck.fraudEvent
+        ? [fraudCheck.fraudEvent.reasonCode]
+        : [],
     });
     const saved = await record.save();
 
-    const student = await this.studentModel.findById(studentIdOid).select('fullName').exec();
     this.eventsGateway.emitAttendanceScan({
       sessionId: createAttendanceDto.sessionId,
       studentId: createAttendanceDto.studentId,
-      studentName: student?.fullName || 'Unknown',
+      studentName: student.fullName,
       status: saved.status,
       scanTime: saved.scanTime.toISOString(),
     });
@@ -119,7 +225,11 @@ export class AttendanceService {
     return saved;
   }
 
-  async findBySession(sessionId: string, page: number = 1, limit: number = 20): Promise<PaginatedResult<Attendance>> {
+  async findBySession(
+    sessionId: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<Attendance>> {
     const filter = { sessionId: new Types.ObjectId(sessionId) };
     const total = await this.attendanceModel.countDocuments(filter).exec();
     const data = await this.attendanceModel
@@ -132,7 +242,11 @@ export class AttendanceService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  async findByStudent(studentId: string, page: number = 1, limit: number = 20): Promise<PaginatedResult<Attendance>> {
+  async findByStudent(
+    studentId: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<Attendance>> {
     const filter = { studentId: new Types.ObjectId(studentId) };
     const total = await this.attendanceModel.countDocuments(filter).exec();
     const data = await this.attendanceModel
@@ -159,8 +273,19 @@ export class AttendanceService {
     return record;
   }
 
-  async getStats(studentId?: string): Promise<Record<string, any>> {
+  async getStats(
+    studentId?: string,
+    teacherId?: string,
+  ): Promise<Record<string, any>> {
     const filter: Record<string, any> = {};
+    if (teacherId) {
+      const sessions = await this.sessionModel
+        .find({ teacherId: new Types.ObjectId(teacherId) })
+        .select('_id')
+        .exec();
+      const sessionIds = sessions.map((s) => s._id);
+      filter.sessionId = { $in: sessionIds };
+    }
     if (studentId) {
       try {
         const studentOid = new Types.ObjectId(studentId);
@@ -188,17 +313,23 @@ export class AttendanceService {
     }
 
     const total = await this.attendanceModel.countDocuments(filter);
-    const byStatus = await this.attendanceModel.aggregate([
+    interface AggItem {
+      _id: string;
+      count: number;
+    }
+
+    const byStatus: AggItem[] = await this.attendanceModel.aggregate([
       { $match: filter },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ]);
-    const bySession = await this.attendanceModel.aggregate([
+
+    const bySession: AggItem[] = await this.attendanceModel.aggregate([
       { $match: filter },
       { $group: { _id: '$sessionId', count: { $sum: 1 } } },
     ]);
 
     const statsMap = byStatus.reduce(
-      (acc: Record<string, number>, item: any) => {
+      (acc: Record<string, number>, item: AggItem) => {
         acc[item._id] = item.count;
         return acc;
       },
@@ -208,13 +339,28 @@ export class AttendanceService {
     const totalPresent = statsMap['present'] || 0;
     const totalAbsent = statsMap['absent'] || 0;
     const totalLate = statsMap['late'] || 0;
-    const attendanceRate = total > 0 ? ((totalPresent + totalLate) / total) * 100 : 0;
+    const attendanceRate =
+      total > 0 ? ((totalPresent + totalLate) / total) * 100 : 0;
 
     const moduleStats = await this.attendanceModel.aggregate([
       { $match: filter },
-      { $lookup: { from: 'sessions', localField: 'sessionId', foreignField: '_id', as: 'session' } },
+      {
+        $lookup: {
+          from: 'sessions',
+          localField: 'sessionId',
+          foreignField: '_id',
+          as: 'session',
+        },
+      },
       { $unwind: '$session' },
-      { $lookup: { from: 'modules', localField: 'session.moduleId', foreignField: '_id', as: 'module' } },
+      {
+        $lookup: {
+          from: 'modules',
+          localField: 'session.moduleId',
+          foreignField: '_id',
+          as: 'module',
+        },
+      },
       { $unwind: '$module' },
       {
         $group: {
@@ -235,7 +381,12 @@ export class AttendanceService {
           absent: 1,
           late: 1,
           total: 1,
-          attendanceRate: { $multiply: [{ $divide: [{ $add: ['$present', '$late'] }, '$total'] }, 100] },
+          attendanceRate: {
+            $multiply: [
+              { $divide: [{ $add: ['$present', '$late'] }, '$total'] },
+              100,
+            ],
+          },
         },
       },
     ]);
@@ -247,15 +398,23 @@ export class AttendanceService {
       totalLate,
       attendanceRate: Math.round(attendanceRate * 10) / 10,
       moduleStats,
-      byStatus: byStatus.map((item: any) => ({ status: item._id, count: item.count })),
-      bySession: bySession.map((item: any) => ({ sessionId: item._id, count: item.count })),
+      byStatus: byStatus.map((item: AggItem) => ({
+        status: item._id,
+        count: item.count,
+      })),
+      bySession: bySession.map((item: AggItem) => ({
+        sessionId: item._id,
+        count: item.count,
+      })),
     };
   }
 
   async remove(id: string): Promise<void> {
     const result = await this.attendanceModel.findByIdAndDelete(id).exec();
     if (!result) {
-      throw new NotFoundException('Attendance record with ID "' + id + '" not found');
+      throw new NotFoundException(
+        'Attendance record with ID "' + id + '" not found',
+      );
     }
   }
 }
