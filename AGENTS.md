@@ -1,4 +1,6 @@
-# AGENTS.md
+# AGENTS.md — backend/
+
+Root: `../AGENTS.md` for monorepo-wide commands and cross-project context.
 
 This file provides guidelines for agentic coding tools working on this NestJS backend project.
 
