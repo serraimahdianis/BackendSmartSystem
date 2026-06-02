@@ -69,18 +69,21 @@ export class StudentService {
     limit: number = 20,
   ): Promise<PaginatedResult<Student>> {
     const schedules = await this.scheduleModel.find({ teacherId }).exec();
-    if (schedules.length === 0) {
-      return { data: [], total: 0, page, limit, totalPages: 0 };
+
+    const conditions: any[] = [];
+    if (schedules.length > 0) {
+      schedules.forEach((s) => {
+        if (s.type === 'cours' || !s.group) {
+          conditions.push({ year: s.year });
+        } else {
+          conditions.push({ year: s.year, group: s.group });
+        }
+      });
     }
 
-    const conditions = schedules.map((s) => {
-      if (s.type === 'cours' || !s.group) {
-        return { year: s.year };
-      }
-      return { year: s.year, group: s.group };
-    });
+    const orConditions: any[] = [...conditions, { teacherId }];
+    const filter: Record<string, any> = { $or: orConditions };
 
-    const filter: Record<string, any> = { $or: conditions };
     if (year) filter.year = year;
     if (group) filter.group = group;
 
@@ -95,18 +98,21 @@ export class StudentService {
   }
 
   /**
-   * Verifies if a student is assigned to a specific teacher based on schedules.
+   * Verifies if a student is assigned to a specific teacher based on schedules or direct assignment.
    */
   async isAssignedToTeacher(
     studentId: string,
     teacherId: string,
   ): Promise<boolean> {
-    const [student, schedules] = await Promise.all([
-      this.studentModel.findById(studentId).exec(),
-      this.scheduleModel.find({ teacherId }).exec(),
-    ]);
+    const student = await this.studentModel.findById(studentId).exec();
+    if (!student) return false;
 
-    if (!student || schedules.length === 0) return false;
+    // Check direct assignment first
+    if ((student as any).teacherId === teacherId) return true;
+
+    // Check schedule-based assignment
+    const schedules = await this.scheduleModel.find({ teacherId }).exec();
+    if (schedules.length === 0) return false;
 
     return schedules.some((s) => {
       const yearMatch = s.year === student.year;

@@ -87,4 +87,13 @@ export class CreateStudentDto {
   @IsString()
   @IsNotEmpty()
   speciality: string;
+
+  @ApiProperty({
+    example: '60d5ec49f1b2c72b9c8e4a1a',
+    description: 'Optional assigned teacher ID',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  teacherId?: string;
 }
