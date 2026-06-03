@@ -28,6 +28,18 @@ export class Teacher {
   @Prop({ required: true })
   department: string;
 
+  @ApiProperty({ example: ['2A', '2B'], required: false })
+  @Prop({ type: [String], default: [] })
+  groups: string[];
+
+  @ApiProperty({ example: ['L2', 'L3'], required: false })
+  @Prop({ type: [String], default: [] })
+  years: string[];
+
+  @ApiProperty({ example: ['Computer Science'], required: false })
+  @Prop({ type: [String], default: [] })
+  specialities: string[];
+
   @Prop({ default: false })
   isVerified: boolean;
 

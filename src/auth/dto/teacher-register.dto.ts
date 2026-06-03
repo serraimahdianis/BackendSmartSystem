@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+  IsArray,
+  IsOptional,
+} from 'class-validator';
 
 export class TeacherRegisterDto {
   @ApiProperty({ example: 'Dr. Ahmed Bouzid', description: 'Full name' })
@@ -26,4 +33,22 @@ export class TeacherRegisterDto {
   @IsString()
   @IsNotEmpty()
   department: string;
+
+  @ApiProperty({ example: ['2A', '2B'], required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  groups?: string[];
+
+  @ApiProperty({ example: ['L2', 'L3'], required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  years?: string[];
+
+  @ApiProperty({ example: ['Computer Science'], required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  specialities?: string[];
 }

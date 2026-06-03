@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   MinLength,
+  IsArray,
 } from 'class-validator';
 
 export class CreateTeacherDto {
@@ -44,4 +45,22 @@ export class CreateTeacherDto {
   @IsString()
   @IsNotEmpty()
   department: string;
+
+  @ApiProperty({ example: ['2A', '2B'], required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  groups?: string[];
+
+  @ApiProperty({ example: ['L2', 'L3'], required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  years?: string[];
+
+  @ApiProperty({ example: ['Computer Science'], required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  specialities?: string[];
 }

@@ -41,6 +41,18 @@ export class Session {
   @Prop()
   group: string;
 
+  @ApiProperty({ example: 'Computer Science', required: false })
+  @Prop({ default: null })
+  speciality: string;
+
+  @ApiProperty({
+    example: 'L2',
+    enum: ['L1', 'L2', 'L3', 'M1', 'M2'],
+    required: false,
+  })
+  @Prop()
+  year: string;
+
   @ApiProperty({
     example: 'planned',
     enum: ['planned', 'active', 'closed', 'canceled'],
@@ -68,3 +80,4 @@ SessionSchema.index({ moduleId: 1, date: -1 });
 SessionSchema.index({ teacherId: 1, date: -1 });
 SessionSchema.index({ status: 1, date: -1 });
 SessionSchema.index({ date: -1 });
+SessionSchema.index({ year: 1, group: 1, speciality: 1, date: -1 });

@@ -52,11 +52,12 @@ export class CreateStudentDto {
 
   @ApiProperty({
     example: 'QR-0001-EFGH',
-    description: 'Unique QR code (fallback)',
+    description: 'Unique QR code (auto-generated from RFID if not provided)',
+    required: false,
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  qrCode: string;
+  qrCode?: string;
 
   @ApiProperty({
     example: 'https://example.com/face.jpg',
@@ -87,13 +88,4 @@ export class CreateStudentDto {
   @IsString()
   @IsNotEmpty()
   speciality: string;
-
-  @ApiProperty({
-    example: '60d5ec49f1b2c72b9c8e4a1a',
-    description: 'Optional assigned teacher ID',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  teacherId?: string;
 }

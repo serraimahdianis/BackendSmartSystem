@@ -7,6 +7,7 @@ import {
   Schedule,
   ScheduleDocument,
 } from '../schedule/schemas/schedule.schema';
+import { Teacher, TeacherDocument } from '../teacher/schemas/teacher.schema';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 
@@ -23,6 +24,7 @@ export class StudentService {
   constructor(
     @InjectModel(Student.name) private studentModel: Model<StudentDocument>,
     @InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>,
+    @InjectModel(Teacher.name) private teacherModel: Model<TeacherDocument>,
   ) {}
 
   async create(createStudentDto: CreateStudentDto): Promise<Student> {
@@ -31,8 +33,13 @@ export class StudentService {
       `sciences${createStudentDto.birthday}`,
       10,
     );
+    // Auto-generate qrCode if not provided
+    const qrCode =
+      createStudentDto.qrCode ||
+      `QR-${createStudentDto.group}-${createStudentDto.studentId}`;
     const createdStudent = new this.studentModel({
       ...createStudentDto,
+      qrCode,
       password: hashedPassword,
     });
     return createdStudent.save();
@@ -41,12 +48,14 @@ export class StudentService {
   async findAll(
     year?: string,
     group?: string,
+    speciality?: string,
     page: number = 1,
     limit: number = 20,
   ): Promise<PaginatedResult<Student>> {
     const filter: Record<string, any> = {};
     if (year) filter.year = year;
     if (group) filter.group = group;
+    if (speciality) filter.speciality = speciality;
 
     const total = await this.studentModel.countDocuments(filter).exec();
     const data = await this.studentModel
@@ -59,33 +68,48 @@ export class StudentService {
   }
 
   /**
-   * Returns students belonging to the teacher's schedules (year/group).
+   * Returns students belonging to the teacher's directly assigned groups/years/specialities.
    */
   async findForTeacher(
     teacherId: string,
     year?: string,
     group?: string,
+    speciality?: string,
     page: number = 1,
     limit: number = 20,
   ): Promise<PaginatedResult<Student>> {
-    const schedules = await this.scheduleModel.find({ teacherId }).exec();
-
-    const conditions: any[] = [];
-    if (schedules.length > 0) {
-      schedules.forEach((s) => {
-        if (s.type === 'cours' || !s.group) {
-          conditions.push({ year: s.year });
-        } else {
-          conditions.push({ year: s.year, group: s.group });
-        }
-      });
+    const teacher = await this.teacherModel.findById(teacherId).exec();
+    if (!teacher) {
+      return { data: [], total: 0, page, limit, totalPages: 0 };
     }
 
-    const orConditions: any[] = [...conditions, { teacherId }];
-    const filter: Record<string, any> = { $or: orConditions };
+    const filter: Record<string, any> = {};
 
-    if (year) filter.year = year;
-    if (group) filter.group = group;
+    // Base filter: must be in teacher's assigned arrays (if arrays are not empty)
+    if (teacher.years?.length > 0) filter.year = { $in: teacher.years };
+    if (teacher.groups?.length > 0) filter.group = { $in: teacher.groups };
+    if (teacher.specialities?.length > 0)
+      filter.speciality = { $in: teacher.specialities };
+
+    // Query param overrides (intersection)
+    if (year) {
+      if (!teacher.years?.length || teacher.years.includes(year))
+        filter.year = year;
+      else return { data: [], total: 0, page, limit, totalPages: 0 };
+    }
+    if (group) {
+      if (!teacher.groups?.length || teacher.groups.includes(group))
+        filter.group = group;
+      else return { data: [], total: 0, page, limit, totalPages: 0 };
+    }
+    if (speciality) {
+      if (
+        !teacher.specialities?.length ||
+        teacher.specialities.includes(speciality)
+      )
+        filter.speciality = speciality;
+      else return { data: [], total: 0, page, limit, totalPages: 0 };
+    }
 
     const total = await this.studentModel.countDocuments(filter).exec();
     const data = await this.studentModel
@@ -98,7 +122,7 @@ export class StudentService {
   }
 
   /**
-   * Verifies if a student is assigned to a specific teacher based on schedules or direct assignment.
+   * Verifies if a student is assigned to a specific teacher via direct metadata arrays.
    */
   async isAssignedToTeacher(
     studentId: string,
@@ -107,19 +131,18 @@ export class StudentService {
     const student = await this.studentModel.findById(studentId).exec();
     if (!student) return false;
 
-    // Check direct assignment first
-    if ((student as any).teacherId === teacherId) return true;
+    const teacher = await this.teacherModel.findById(teacherId).exec();
+    if (!teacher) return false;
 
-    // Check schedule-based assignment
-    const schedules = await this.scheduleModel.find({ teacherId }).exec();
-    if (schedules.length === 0) return false;
+    const yearOk =
+      teacher.years?.length === 0 || teacher.years.includes(student.year);
+    const groupOk =
+      teacher.groups?.length === 0 || teacher.groups.includes(student.group);
+    const specialityOk =
+      teacher.specialities?.length === 0 ||
+      teacher.specialities.includes(student.speciality);
 
-    return schedules.some((s) => {
-      const yearMatch = s.year === student.year;
-      const groupMatch =
-        s.type === 'cours' || !s.group || s.group === student.group;
-      return yearMatch && groupMatch;
-    });
+    return yearOk && groupOk && specialityOk;
   }
 
   /**
@@ -129,13 +152,19 @@ export class StudentService {
     rfidCode: string,
     teacherId: string,
   ): Promise<boolean> {
-    const query: any[] = [{ rfidCode }, { qrCode: rfidCode }, { studentId: rfidCode }];
+    const query: any[] = [
+      { rfidCode },
+      { qrCode: rfidCode },
+      { studentId: rfidCode },
+    ];
     if (rfidCode.length === 24) {
       query.push({ _id: rfidCode });
     }
-    const student = await this.studentModel.findOne({
-      $or: query,
-    }).exec();
+    const student = await this.studentModel
+      .findOne({
+        $or: query,
+      })
+      .exec();
     if (!student) return false;
     return this.isAssignedToTeacher(student._id.toString(), teacherId);
   }
@@ -149,13 +178,19 @@ export class StudentService {
   }
 
   async findByRfid(rfidCode: string): Promise<Student> {
-    const query: any[] = [{ rfidCode }, { qrCode: rfidCode }, { studentId: rfidCode }];
+    const query: any[] = [
+      { rfidCode },
+      { qrCode: rfidCode },
+      { studentId: rfidCode },
+    ];
     if (rfidCode.length === 24) {
       query.push({ _id: rfidCode });
     }
-    const student = await this.studentModel.findOne({
-      $or: query,
-    }).exec();
+    const student = await this.studentModel
+      .findOne({
+        $or: query,
+      })
+      .exec();
     if (!student) {
       throw new NotFoundException(`Student with code "${rfidCode}" not found`);
     }

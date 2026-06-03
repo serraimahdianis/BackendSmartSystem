@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -140,11 +141,11 @@ export class TeacherController {
   }
 
   @Patch(':id')
-  @Roles('admin')
+  @Roles('admin', 'teacher')
   @ApiOperation({
     summary: 'Update a teacher',
     description:
-      'Updates an existing teacher by their ID. Only provided fields will be updated. Requires admin role.',
+      'Updates an existing teacher by their ID. Only provided fields will be updated. Teachers can only update their own profile.',
   })
   @ApiParam({
     name: 'id',
@@ -164,10 +165,19 @@ export class TeacherController {
   })
   @ApiUnauthorizedResponse({ description: 'JWT token is missing or invalid' })
   @ApiForbiddenResponse({
-    description: 'User does not have the required role (admin only)',
+    description:
+      'User does not have the required role or is trying to update another teacher',
   })
   @ApiBody({ type: UpdateTeacherDto })
-  update(@Param('id') id: string, @Body() updateTeacherDto: UpdateTeacherDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateTeacherDto: UpdateTeacherDto,
+    @Req() req: Request,
+  ) {
+    const user = req.user as { userId: string; role: string };
+    if (user.role === 'teacher' && user.userId !== id) {
+      throw new ForbiddenException('You can only update your own profile');
+    }
     return this.teacherService.update(id, updateTeacherDto);
   }
 

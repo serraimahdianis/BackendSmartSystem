@@ -158,9 +158,14 @@ export class SessionService {
           'year' in populatedSession.moduleId
         ) {
           const year = (populatedSession.moduleId as { year: string }).year;
-          const filter: { year: string; group?: string } = { year };
+          const filter: { year: string; group?: string; speciality?: string } =
+            { year };
           if (session.group && session.group.toLowerCase() !== 'whole year') {
             filter.group = session.group;
+          }
+          // Only enroll students of the matching speciality
+          if (session.speciality) {
+            filter.speciality = session.speciality;
           }
           const students = await this.studentModel.find(filter).exec();
           if (students.length > 0) {
@@ -245,6 +250,8 @@ export class SessionService {
       endTime: schedule.endTime,
       type: schedule.type,
       group: schedule.group,
+      speciality: schedule.speciality ?? null,
+      year: schedule.year,
       status: 'active',
       isReplacement: false,
     });

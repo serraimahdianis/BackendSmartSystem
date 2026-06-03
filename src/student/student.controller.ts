@@ -52,11 +52,17 @@ export class StudentController {
   @ApiResponse({ status: 200, description: 'List of students' })
   @ApiQuery({ name: 'group', required: false, example: '2A' })
   @ApiQuery({ name: 'year', required: false, example: 'L2' })
+  @ApiQuery({
+    name: 'speciality',
+    required: false,
+    example: 'Computer Science',
+  })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
   async findAll(
     @Query('group') group?: string,
     @Query('year') year?: string,
+    @Query('speciality') speciality?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Request() req?: { user: { userId: string; role: string } },
@@ -69,12 +75,13 @@ export class StudentController {
         req.user.userId,
         year,
         group,
+        speciality,
         page,
         limit,
       );
     }
 
-    return this.studentService.findAll(year, group, page, limit);
+    return this.studentService.findAll(year, group, speciality, page, limit);
   }
 
   @Get('rfid/:rfidCode')

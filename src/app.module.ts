@@ -14,6 +14,7 @@ import { ScheduleModule } from './schedule/schedule.module';
 import { SessionModule } from './session/session.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { AntiFraudModule } from './anti-fraud/anti-fraud.module';
+import { MetadataModule } from './metadata/metadata.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { AntiFraudModule } from './anti-fraud/anti-fraud.module';
     EventsModule,
     NonceModule,
     AntiFraudModule,
+    MetadataModule,
   ],
   controllers: [],
   providers: [

@@ -122,6 +122,8 @@ export class SessionCronService {
         endTime: schedule.endTime,
         type: schedule.type,
         group: schedule.group || undefined,
+        speciality: schedule.speciality ?? null,
+        year: schedule.year,
         status: 'planned',
         isReplacement: false,
       }));

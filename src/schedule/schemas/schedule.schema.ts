@@ -32,6 +32,15 @@ export class Schedule {
   group: string;
 
   @ApiProperty({
+    example: 'Computer Science',
+    description:
+      'Speciality of students this schedule applies to. Null means all specialities.',
+    required: false,
+  })
+  @Prop({ default: null })
+  speciality: string;
+
+  @ApiProperty({
     example: 'Sunday',
     enum: [
       'Sunday',
@@ -74,4 +83,4 @@ export const ScheduleSchema = SchemaFactory.createForClass(Schedule);
 
 ScheduleSchema.index({ teacherId: 1, dayOfWeek: 1 });
 ScheduleSchema.index({ moduleId: 1 });
-ScheduleSchema.index({ year: 1, group: 1, dayOfWeek: 1 });
+ScheduleSchema.index({ year: 1, group: 1, speciality: 1, dayOfWeek: 1 });

@@ -63,6 +63,20 @@ export class CreateSessionDto {
   @IsString()
   group?: string;
 
+  @ApiProperty({ example: 'Computer Science', required: false })
+  @IsOptional()
+  @IsString()
+  speciality?: string;
+
+  @ApiProperty({
+    example: 'L2',
+    enum: ['L1', 'L2', 'L3', 'M1', 'M2'],
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(['L1', 'L2', 'L3', 'M1', 'M2'])
+  year?: string;
+
   @ApiProperty({
     example: 'planned',
     enum: ['planned', 'active', 'closed', 'canceled'],

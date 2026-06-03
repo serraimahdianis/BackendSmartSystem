@@ -51,10 +51,6 @@ export class Student {
   @ApiProperty({ example: 'Computer Science' })
   @Prop({ required: true })
   speciality: string;
-
-  @ApiProperty({ example: '60d5ec49f1b2c72b9c8e4a1a', required: false })
-  @Prop({ required: false })
-  teacherId?: string;
 }
 
 export const StudentSchema = SchemaFactory.createForClass(Student);

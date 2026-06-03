@@ -43,6 +43,16 @@ export class CreateScheduleDto {
   group?: string;
 
   @ApiProperty({
+    example: 'Computer Science',
+    description:
+      'Speciality of students for this schedule. Null means all specialities.',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  speciality?: string;
+
+  @ApiProperty({
     example: 'Sunday',
     enum: [
       'Sunday',
