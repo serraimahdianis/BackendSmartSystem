@@ -100,6 +100,8 @@ export class AttendanceService {
       createAttendanceDto.method === 'MANUAL';
 
     if (!isTeacherInitiated) {
+      const cleanStr = (s?: string) => s ? s.toLowerCase().replace(/\s+/g, '') : '';
+      
       if (session.scheduleId) {
         const schedule = await this.scheduleModel
           .findById(session.scheduleId)
@@ -113,20 +115,42 @@ export class AttendanceService {
           if (
             schedule.group &&
             schedule.group.toLowerCase() !== 'whole year' &&
-            student.group.toLowerCase() !== schedule.group.toLowerCase()
+            cleanStr(student.group) !== cleanStr(schedule.group)
           ) {
             throw new ForbiddenException(
               'Student group does not match this session',
             );
           }
+          if (
+            schedule.speciality &&
+            cleanStr(student.speciality) !== cleanStr(schedule.speciality)
+          ) {
+            throw new ForbiddenException(
+              'Student speciality does not match this session',
+            );
+          }
         }
-      } else if (session.group) {
+      } else {
+        if (session.year && student.year !== session.year) {
+          throw new ForbiddenException(
+            'Student year does not match this session',
+          );
+        }
         if (
+          session.group &&
           session.group.toLowerCase() !== 'whole year' &&
-          student.group.toLowerCase() !== session.group.toLowerCase()
+          cleanStr(student.group) !== cleanStr(session.group)
         ) {
           throw new ForbiddenException(
             'Student group does not match this session',
+          );
+        }
+        if (
+          session.speciality &&
+          cleanStr(student.speciality) !== cleanStr(session.speciality)
+        ) {
+          throw new ForbiddenException(
+            'Student speciality does not match this session',
           );
         }
       }
