@@ -136,7 +136,7 @@ export class SessionService {
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
-  private async handleSessionStatusTransition(
+  public async handleSessionStatusTransition(
     session: SessionDocument,
     oldStatus: string,
     newStatus: string,

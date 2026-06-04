@@ -7,6 +7,7 @@ import {
   Schedule,
   ScheduleDocument,
 } from '../schedule/schemas/schedule.schema';
+import { SessionService } from './session.service';
 
 @Injectable()
 export class SessionCronService {
@@ -29,6 +30,7 @@ export class SessionCronService {
   constructor(
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
     @InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>,
+    private readonly sessionService: SessionService,
   ) {}
 
   // ─── HELPER ──────────────────────────────────────────────────────────────────
@@ -189,5 +191,72 @@ export class SessionCronService {
     this.logger.warn(
       `🚫 Auto-canceled ${sessionsToCancel.length} expired session(s): ${cancelIds.join(', ')}`,
     );
+  }
+
+  // ─── JOB 3: AUTO-START SCHEDULED SESSIONS (EVERY MINUTE) ───────────────────
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async autoStartScheduledSessions(): Promise<void> {
+    const todayName = this.DAYS[new Date().getDay()];
+    const { startOfDay, endOfDay } = this.getTodayRange();
+
+    // Find all schedules matching today
+    const schedules = await this.scheduleModel
+      .find({ dayOfWeek: todayName })
+      .exec();
+
+    if (schedules.length === 0) {
+      return;
+    }
+
+    const now = new Date();
+    const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+
+    for (const schedule of schedules) {
+      const [startH, startM] = schedule.startTime.split(':').map(Number);
+      const [endH, endM] = schedule.endTime.split(':').map(Number);
+      const startTotalMinutes = startH * 60 + startM;
+      const endTotalMinutes = endH * 60 + endM;
+
+      // If current time is within the schedule timeframe
+      if (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes) {
+        // Check if a session already exists for today
+        const existingSession = await this.sessionModel.findOne({
+          scheduleId: schedule._id,
+          date: { $gte: startOfDay, $lte: endOfDay },
+        }).exec();
+
+        if (!existingSession) {
+          this.logger.log(
+            `⏰ [Auto-Start] Creating and starting new session for schedule ${schedule._id} (${schedule.startTime} - ${schedule.endTime})`,
+          );
+
+          const newSession = new this.sessionModel({
+            scheduleId: schedule._id,
+            teacherId: schedule.teacherId,
+            moduleId: schedule.moduleId,
+            date: new Date(),
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+            type: schedule.type,
+            group: schedule.group || undefined,
+            speciality: schedule.speciality ?? null,
+            year: schedule.year,
+            status: 'active',
+            isReplacement: false,
+          });
+
+          const saved = await newSession.save();
+          await this.sessionService.handleSessionStatusTransition(saved, 'planned', 'active');
+        } else if (existingSession.status === 'planned') {
+          this.logger.log(
+            `⏰ [Auto-Start] Activating existing planned session ${existingSession._id} for schedule ${schedule._id}`,
+          );
+          existingSession.status = 'active';
+          const saved = await existingSession.save();
+          await this.sessionService.handleSessionStatusTransition(saved, 'planned', 'active');
+        }
+      }
+    }
   }
 }

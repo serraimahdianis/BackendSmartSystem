@@ -83,6 +83,15 @@ export class StudentService {
       return { data: [], total: 0, page, limit, totalPages: 0 };
     }
 
+    // If teacher has absolutely no assignments, return empty results
+    if (
+      (!teacher.years || teacher.years.length === 0) &&
+      (!teacher.groups || teacher.groups.length === 0) &&
+      (!teacher.specialities || teacher.specialities.length === 0)
+    ) {
+      return { data: [], total: 0, page, limit, totalPages: 0 };
+    }
+
     const filter: Record<string, any> = {};
 
     // Base filter: must be in teacher's assigned arrays (if arrays are not empty)
@@ -133,6 +142,15 @@ export class StudentService {
 
     const teacher = await this.teacherModel.findById(teacherId).exec();
     if (!teacher) return false;
+
+    // If teacher has absolutely no assignments, they cannot access any student
+    if (
+      (!teacher.years || teacher.years.length === 0) &&
+      (!teacher.groups || teacher.groups.length === 0) &&
+      (!teacher.specialities || teacher.specialities.length === 0)
+    ) {
+      return false;
+    }
 
     const yearOk =
       teacher.years?.length === 0 || teacher.years.includes(student.year);
