@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -7,10 +7,14 @@ import {
   Schedule,
   ScheduleDocument,
 } from '../schedule/schemas/schedule.schema';
+import {
+  Attendance,
+  AttendanceDocument,
+} from '../attendance/schemas/attendance.schema';
 import { SessionService } from './session.service';
 
 @Injectable()
-export class SessionCronService {
+export class SessionCronService implements OnModuleInit {
   private readonly logger = new Logger(SessionCronService.name);
 
   /** Day-of-week index → name, matching the Schedule schema enum */
@@ -30,8 +34,14 @@ export class SessionCronService {
   constructor(
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
     @InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>,
+    @InjectModel(Attendance.name)
+    private attendanceModel: Model<AttendanceDocument>,
     private readonly sessionService: SessionService,
   ) {}
+
+  async onModuleInit() {
+    await this.cleanupOldSessions();
+  }
 
   // ─── HELPER ──────────────────────────────────────────────────────────────────
 
@@ -79,10 +89,60 @@ export class SessionCronService {
     return { startOfDay, endOfDay };
   }
 
+  /**
+   * Cleans up all sessions and their corresponding attendance records
+   * that are older than the start of the current week (Monday 00:00).
+   */
+  async cleanupOldSessions(): Promise<void> {
+    const now = new Date();
+    const currentDay = now.getDay();
+    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const startOfWeek = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + distanceToMonday,
+      0,
+      0,
+      0,
+      0,
+    );
+
+    this.logger.log(
+      `🧹 Cleaning up sessions older than start of week (${startOfWeek.toISOString()})...`,
+    );
+
+    // 1. Find matching old sessions
+    const oldSessions = await this.sessionModel
+      .find({ date: { $lt: startOfWeek } })
+      .select('_id')
+      .exec();
+
+    if (oldSessions.length > 0) {
+      const oldSessionIds = oldSessions.map((s) => s._id);
+
+      // 2. Delete corresponding attendance records
+      const attendanceResult = await this.attendanceModel
+        .deleteMany({ sessionId: { $in: oldSessionIds } })
+        .exec();
+
+      // 3. Delete the sessions
+      const sessionResult = await this.sessionModel
+        .deleteMany({ _id: { $in: oldSessionIds } })
+        .exec();
+
+      this.logger.log(
+        `✅ Removed ${sessionResult.deletedCount} old session(s) and ${attendanceResult.deletedCount} attendance record(s) from previous weeks.`,
+      );
+    } else {
+      this.logger.log(`✅ No old sessions found to clean up.`);
+    }
+  }
+
   // ─── JOB 1: DAILY SESSION PRE-GENERATION (MIDNIGHT) ─────────────────────────
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async generateDailySessions(): Promise<void> {
+    await this.cleanupOldSessions();
     const todayName = this.DAYS[new Date().getDay()];
     this.logger.log(`⏰ [Daily Job] Generating sessions for ${todayName}...`);
 
@@ -219,16 +279,21 @@ export class SessionCronService {
       const endTotalMinutes = endH * 60 + endM;
 
       // If current time is within the schedule timeframe
-      if (currentTotalMinutes >= startTotalMinutes && currentTotalMinutes < endTotalMinutes) {
+      if (
+        currentTotalMinutes >= startTotalMinutes &&
+        currentTotalMinutes < endTotalMinutes
+      ) {
         // Check if a session already exists for today
-        const existingSession = await this.sessionModel.findOne({
-          scheduleId: schedule._id,
-          date: { $gte: startOfDay, $lte: endOfDay },
-        }).exec();
+        const existingSession = await this.sessionModel
+          .findOne({
+            scheduleId: schedule._id,
+            date: { $gte: startOfDay, $lte: endOfDay },
+          })
+          .exec();
 
         if (!existingSession) {
           this.logger.log(
-            `⏰ [Auto-Start] Creating and starting new session for schedule ${schedule._id} (${schedule.startTime} - ${schedule.endTime})`,
+            `⏰ [Auto-Start] Creating and starting new session for schedule ${schedule._id.toString()} (${schedule.startTime} - ${schedule.endTime})`,
           );
 
           const newSession = new this.sessionModel({
@@ -247,14 +312,22 @@ export class SessionCronService {
           });
 
           const saved = await newSession.save();
-          await this.sessionService.handleSessionStatusTransition(saved, 'planned', 'active');
+          await this.sessionService.handleSessionStatusTransition(
+            saved,
+            'planned',
+            'active',
+          );
         } else if (existingSession.status === 'planned') {
           this.logger.log(
-            `⏰ [Auto-Start] Activating existing planned session ${existingSession._id} for schedule ${schedule._id}`,
+            `⏰ [Auto-Start] Activating existing planned session ${existingSession._id.toString()} for schedule ${schedule._id.toString()}`,
           );
           existingSession.status = 'active';
           const saved = await existingSession.save();
-          await this.sessionService.handleSessionStatusTransition(saved, 'planned', 'active');
+          await this.sessionService.handleSessionStatusTransition(
+            saved,
+            'planned',
+            'active',
+          );
         }
       }
     }

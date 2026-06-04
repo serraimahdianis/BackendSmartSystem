@@ -42,13 +42,40 @@ export class SessionService {
     return createdSession.save();
   }
 
+  private getThisWeekRange(): { startOfWeek: Date; endOfWeek: Date } {
+    const now = new Date();
+    const currentDay = now.getDay();
+    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const startOfWeek = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + distanceToMonday,
+      0,
+      0,
+      0,
+      0,
+    );
+    const endOfWeek = new Date(
+      startOfWeek.getFullYear(),
+      startOfWeek.getMonth(),
+      startOfWeek.getDate() + 6,
+      23,
+      59,
+      59,
+      999,
+    );
+    return { startOfWeek, endOfWeek };
+  }
+
   async findAll(
     page: number = 1,
     limit: number = 20,
   ): Promise<PaginatedResult<Session>> {
-    const total = await this.sessionModel.countDocuments().exec();
+    const { startOfWeek, endOfWeek } = this.getThisWeekRange();
+    const filter = { date: { $gte: startOfWeek, $lte: endOfWeek } };
+    const total = await this.sessionModel.countDocuments(filter).exec();
     const data = await this.sessionModel
-      .find()
+      .find(filter)
       .skip((page - 1) * limit)
       .limit(limit)
       .populate('teacherId', 'fullName email')
@@ -76,9 +103,14 @@ export class SessionService {
     page: number = 1,
     limit: number = 20,
   ): Promise<PaginatedResult<Session>> {
-    const total = await this.sessionModel.countDocuments({ teacherId }).exec();
+    const { startOfWeek, endOfWeek } = this.getThisWeekRange();
+    const filter = {
+      teacherId,
+      date: { $gte: startOfWeek, $lte: endOfWeek },
+    };
+    const total = await this.sessionModel.countDocuments(filter).exec();
     const data = await this.sessionModel
-      .find({ teacherId })
+      .find(filter)
       .skip((page - 1) * limit)
       .limit(limit)
       .populate('moduleId', 'name year')
