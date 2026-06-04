@@ -627,7 +627,7 @@ async function seed() {
   });
   studentData.forEach((s, index) => {
     console.log(
-      `Student: ${s.fullName} | ID: ${s.studentId} | Password: sciences${s.birthday} | MongoID: ${studentObjIds[index]}`,
+      `Student: ${s.fullName} | ID: ${s.studentId} | Password: ${s.birthday} | MongoID: ${studentObjIds[index]}`,
     );
   });
   console.log('====================================');
