@@ -28,9 +28,9 @@ export class StudentService {
   ) {}
 
   async create(createStudentDto: CreateStudentDto): Promise<Student> {
-    // Auto-generate password from birthday (prefixed with 'sciences') (hashed)
+    // Auto-generate password from birthday (hashed)
     const hashedPassword = await bcrypt.hash(
-      `sciences${createStudentDto.birthday}`,
+      createStudentDto.birthday,
       10,
     );
     // Auto-generate qrCode if not provided
