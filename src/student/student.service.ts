@@ -150,12 +150,11 @@ export class StudentService {
     }
 
     const yearOk =
-      teacher.years?.length === 0 || teacher.years.includes(student.year);
+      !teacher.years || teacher.years.length === 0 || teacher.years.includes(student.year);
     const groupOk =
-      teacher.groups?.length === 0 || teacher.groups.includes(student.group);
+      !teacher.groups || teacher.groups.length === 0 || teacher.groups.includes(student.group);
     const specialityOk =
-      teacher.specialities?.length === 0 ||
-      teacher.specialities.includes(student.speciality);
+      !teacher.specialities || teacher.specialities.length === 0 || teacher.specialities.includes(student.speciality);
 
     return yearOk && groupOk && specialityOk;
   }
