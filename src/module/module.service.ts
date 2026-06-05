@@ -34,7 +34,6 @@ export class ModuleService {
       .find()
       .skip((page - 1) * limit)
       .limit(limit)
-      .populate('teacherId', 'fullName email')
       .exec();
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
@@ -45,28 +44,11 @@ export class ModuleService {
     }
     const module = await this.moduleModel
       .findById(id)
-      .populate('teacherId', 'fullName email')
       .exec();
     if (!module) {
       throw new NotFoundException(`Module with ID "${id}" not found`);
     }
     return module;
-  }
-
-  async findByTeacher(
-    teacherId: string,
-    page: number = 1,
-    limit: number = 20,
-  ): Promise<PaginatedResult<AcademicModule>> {
-    const query = { $or: [{ teacherId }, { teacherId: null }, { teacherId: { $exists: false } }] };
-    const total = await this.moduleModel.countDocuments(query).exec();
-    const data = await this.moduleModel
-      .find(query)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .populate('teacherId', 'fullName email')
-      .exec();
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async update(

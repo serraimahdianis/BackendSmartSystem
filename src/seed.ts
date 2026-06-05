@@ -397,22 +397,21 @@ async function seed() {
   // ─── MODULES ──────────────────────────────────────────────────────────────
   console.log('📚 Creating Modules...');
   const modulesData = [
-    { name: 'Web Development', teacherId: teacherIds[0], year: 'L2' },
-    { name: 'Database Systems', teacherId: teacherIds[0], year: 'L2' },
-    { name: 'Mobile Development', teacherId: teacherIds[1], year: 'M2' },
-    { name: 'Deep Learning', teacherId: teacherIds[1], year: 'M2' },
-    { name: 'Advanced Calculus', teacherId: teacherIds[2], year: 'L2' },
+    { name: 'Web Development' },
+    { name: 'Database Systems' },
+    { name: 'Mobile Development' },
+    { name: 'Deep Learning' },
+    { name: 'Advanced Calculus' },
   ];
 
   const moduleObjIds: string[] = [];
   for (let i = 0; i < modulesData.length; i++) {
     const m = modulesData[i];
-    const tIndex = teacherIds.indexOf(m.teacherId);
     const res = await apiRequest<ItemResponse>(
       'POST',
       '/modules',
       m,
-      teacherTokens[tIndex],
+      adminToken,
     );
     moduleObjIds.push(res._id);
   }

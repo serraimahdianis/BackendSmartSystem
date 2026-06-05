@@ -42,7 +42,7 @@ export class ModuleController {
   @ApiOperation({
     summary: 'Create a new academic module',
     description:
-      'Creates a new academic module/subject and assigns it to a teacher. Requires admin or teacher role.',
+      'Creates a new academic module/subject. Requires admin or teacher role.',
   })
   @ApiCreatedResponse({
     description: 'Module created successfully',
@@ -65,7 +65,7 @@ export class ModuleController {
   @ApiOperation({
     summary: 'Get all modules',
     description:
-      'Retrieves a list of all academic modules with populated teacher information (fullName and email). Accessible by all authenticated users.',
+      'Retrieves a list of all academic modules. Accessible by all authenticated users.',
   })
   @ApiOkResponse({
     description: 'List of all modules retrieved successfully',
@@ -83,48 +83,12 @@ export class ModuleController {
     return this.moduleService.findAll(page, limit);
   }
 
-  @Get('teacher/:teacherId')
-  @Roles('admin', 'teacher')
-  @ApiOperation({
-    summary: 'Get modules by teacher ID',
-    description:
-      'Retrieves all academic modules assigned to a specific teacher. Requires admin or teacher role.',
-  })
-  @ApiParam({
-    name: 'teacherId',
-    description: 'MongoDB ObjectId of the teacher',
-    example: '60d5ec49f1b2c72b9c8e4a1a',
-    type: 'string',
-  })
-  @ApiOkResponse({
-    description: 'Modules for the given teacher retrieved successfully',
-    type: [CreateModuleDto],
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid teacher ID format (must be a valid MongoDB ObjectId)',
-  })
-  @ApiUnauthorizedResponse({ description: 'JWT token is missing or invalid' })
-  @ApiForbiddenResponse({
-    description: 'User does not have the required role (admin or teacher)',
-  })
-  @ApiQuery({ name: 'page', required: false, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, example: 20 })
-  findByTeacher(
-    @Param('teacherId') teacherId: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
-    page = Number(page) || 1;
-    limit = Math.min(Number(limit) || 20, 100);
-    return this.moduleService.findByTeacher(teacherId, page, limit);
-  }
-
   @Get(':id')
   @Roles('admin', 'teacher', 'student')
   @ApiOperation({
     summary: 'Get a module by ID',
     description:
-      'Retrieves a single academic module by its MongoDB ObjectId with populated teacher information. Accessible by all authenticated users.',
+      'Retrieves a single academic module by its MongoDB ObjectId. Accessible by all authenticated users.',
   })
   @ApiParam({
     name: 'id',
