@@ -332,4 +332,78 @@ export class SessionCronService implements OnModuleInit {
       }
     }
   }
+
+  // ─── JOB 4: AUTO-START EXTRA SESSIONS (EVERY MINUTE) ─────────────────────
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async autoStartExtraSessions(): Promise<void> {
+    const { startOfDay, endOfDay } = this.getTodayRange();
+    const now = new Date();
+    const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const extraSessions = await this.sessionModel
+      .find({
+        date: { $gte: startOfDay, $lte: endOfDay },
+        status: 'planned',
+        $or: [{ scheduleId: null }, { scheduleId: { $exists: false } }],
+      })
+      .exec();
+
+    for (const session of extraSessions) {
+      const [startH, startM] = session.startTime.split(':').map(Number);
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      const startTotalMinutes = startH * 60 + startM;
+      const endTotalMinutes = endH * 60 + endM;
+
+      if (
+        currentTotalMinutes >= startTotalMinutes &&
+        currentTotalMinutes < endTotalMinutes
+      ) {
+        this.logger.log(
+          `⏰ [Auto-Start] Activating extra session ${session._id.toString()}`,
+        );
+        session.status = 'active';
+        const saved = await session.save();
+        await this.sessionService.handleSessionStatusTransition(
+          saved,
+          'planned',
+          'active',
+        );
+      }
+    }
+  }
+
+  // ─── JOB 5: AUTO-CLOSE SESSIONS (EVERY MINUTE) ───────────────────────────
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async autoCloseSessions(): Promise<void> {
+    const { startOfDay, endOfDay } = this.getTodayRange();
+    const now = new Date();
+    const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const activeSessions = await this.sessionModel
+      .find({
+        date: { $gte: startOfDay, $lte: endOfDay },
+        status: 'active',
+      })
+      .exec();
+
+    for (const session of activeSessions) {
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      const endTotalMinutes = endH * 60 + endM;
+
+      if (currentTotalMinutes >= endTotalMinutes) {
+        this.logger.log(
+          `⏰ [Auto-Close] Closing session ${session._id.toString()}`,
+        );
+        session.status = 'closed';
+        const saved = await session.save();
+        await this.sessionService.handleSessionStatusTransition(
+          saved,
+          'active',
+          'closed',
+        );
+      }
+    }
+  }
 }

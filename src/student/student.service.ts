@@ -99,7 +99,7 @@ export class StudentService {
     if (teacher.groups?.length > 0) {
       const groupPatterns = teacher.groups.flatMap((g) => {
         const numericPart = g.replace(/^[Gg]/, ''); // "G01" -> "01"
-        const withPrefix = `G${numericPart}`;       // "01" -> "G01"
+        const withPrefix = `G${numericPart}`; // "01" -> "G01"
         return [g, numericPart, withPrefix];
       });
       const uniquePatterns = [...new Set(groupPatterns)];
@@ -120,7 +120,8 @@ export class StudentService {
       // Normalize the query param group too
       const numericPart = group.replace(/^[Gg]/, '');
       const withPrefix = `G${numericPart}`;
-      const teacherGroupNorm = teacher.groups?.map((g) => g.replace(/^[Gg]/, '')) ?? [];
+      const teacherGroupNorm =
+        teacher.groups?.map((g) => g.replace(/^[Gg]/, '')) ?? [];
       if (!teacher.groups?.length || teacherGroupNorm.includes(numericPart))
         filter.group = { $in: [group, numericPart, withPrefix] };
       else return { data: [], total: 0, page, limit, totalPages: 0 };
@@ -167,13 +168,19 @@ export class StudentService {
     }
 
     const yearOk =
-      !teacher.years || teacher.years.length === 0 || teacher.years.includes(student.year);
-    
+      !teacher.years ||
+      teacher.years.length === 0 ||
+      teacher.years.includes(student.year);
+
     // Normalize group comparison: "G01" should match "01" and vice versa
     const studentGroupNorm = student.group?.replace(/^[Gg]/, '') ?? '';
-    const teacherGroupsNorm = (teacher.groups ?? []).map((g) => g.replace(/^[Gg]/, ''));
+    const teacherGroupsNorm = (teacher.groups ?? []).map((g) =>
+      g.replace(/^[Gg]/, ''),
+    );
     const groupOk =
-      !teacher.groups || teacher.groups.length === 0 || teacherGroupsNorm.includes(studentGroupNorm);
+      !teacher.groups ||
+      teacher.groups.length === 0 ||
+      teacherGroupsNorm.includes(studentGroupNorm);
 
     // Removed specialityOk check because speciality names often differ (e.g., 'WEB' vs 'CS')
     // and shouldn't block a teacher from accessing their assigned year/group students.

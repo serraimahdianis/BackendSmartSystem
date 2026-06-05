@@ -74,7 +74,9 @@ export class SessionService {
     status?: string,
   ): Promise<PaginatedResult<Session>> {
     const { startOfWeek, endOfWeek } = this.getThisWeekRange();
-    const filter: Record<string, any> = { date: { $gte: startOfWeek, $lte: endOfWeek } };
+    const filter: Record<string, any> = {
+      date: { $gte: startOfWeek, $lte: endOfWeek },
+    };
     if (status) filter.status = status;
     const total = await this.sessionModel.countDocuments(filter).exec();
     const data = await this.sessionModel
@@ -94,7 +96,12 @@ export class SessionService {
    */
   async findForStudent(
     studentId: string,
-    opts: { date?: string; status?: string; page?: number; limit?: number } = {},
+    opts: {
+      date?: string;
+      status?: string;
+      page?: number;
+      limit?: number;
+    } = {},
   ): Promise<PaginatedResult<Session>> {
     const page = opts.page || 1;
     const limit = opts.limit || 20;
@@ -123,8 +130,11 @@ export class SessionService {
 
     // Filter by speciality if the student has one
     if (student.speciality) {
+      const currentAnd: Record<string, any>[] = Array.isArray(filter.$and)
+        ? filter.$and
+        : [];
       filter.$and = [
-        ...(filter.$and || []),
+        ...currentAnd,
         {
           $or: [
             { speciality: student.speciality },
@@ -207,7 +217,9 @@ export class SessionService {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const filter: Record<string, any> = { date: { $gte: startOfDay, $lte: endOfDay } };
+    const filter: Record<string, any> = {
+      date: { $gte: startOfDay, $lte: endOfDay },
+    };
     if (status) filter.status = status;
     const total = await this.sessionModel.countDocuments(filter).exec();
     const data = await this.sessionModel
@@ -264,29 +276,35 @@ export class SessionService {
         if (
           populatedSession &&
           populatedSession.moduleId &&
-          typeof populatedSession.moduleId === 'object' &&
-          'year' in populatedSession.moduleId
+          typeof populatedSession.moduleId === 'object'
         ) {
-          const year = (populatedSession.moduleId as { year: string }).year;
-          const filter: { year: string; group?: string; speciality?: string } =
-            { year };
-          if (session.group && session.group.toLowerCase() !== 'whole year') {
-            filter.group = session.group;
-          }
-          // Only enroll students of the matching speciality
-          if (session.speciality) {
-            filter.speciality = session.speciality;
-          }
-          const students = await this.studentModel.find(filter).exec();
-          if (students.length > 0) {
-            const absentRecords = students.map((s) => ({
-              sessionId: session._id,
-              studentId: s._id,
-              status: 'absent',
-              scanTime: null,
-              method: 'MANUAL',
-            }));
-            await this.attendanceModel.insertMany(absentRecords);
+          const year =
+            session.year ||
+            (populatedSession.moduleId as unknown as { year: string }).year;
+          if (year) {
+            const filter: {
+              year: string;
+              group?: string;
+              speciality?: string;
+            } = { year };
+            if (session.group && session.group.toLowerCase() !== 'whole year') {
+              filter.group = session.group;
+            }
+            // Only enroll students of the matching speciality
+            if (session.speciality) {
+              filter.speciality = session.speciality;
+            }
+            const students = await this.studentModel.find(filter).exec();
+            if (students.length > 0) {
+              const absentRecords = students.map((s) => ({
+                sessionId: session._id,
+                studentId: s._id,
+                status: 'absent',
+                scanTime: null,
+                method: 'MANUAL',
+              }));
+              await this.attendanceModel.insertMany(absentRecords);
+            }
           }
         }
       }

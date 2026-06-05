@@ -41,7 +41,10 @@ export class ScheduleController {
 
   @Get()
   @Roles('admin', 'teacher', 'student')
-  @ApiOperation({ summary: 'Get all schedules. Students only see schedules matching their year/group/speciality.' })
+  @ApiOperation({
+    summary:
+      'Get all schedules. Students only see schedules matching their year/group/speciality.',
+  })
   @ApiResponse({ status: 200, description: 'List of schedules' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
