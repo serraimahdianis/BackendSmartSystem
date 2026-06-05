@@ -106,8 +106,9 @@ export class StudentService {
       filter.group = { $in: uniquePatterns };
     }
 
-    if (teacher.specialities?.length > 0)
-      filter.speciality = { $in: teacher.specialities };
+    // Removed strict speciality base filter to avoid hiding students due to minor speciality mismatches.
+    // If a teacher is assigned to a Year and Group, they should see those students regardless of speciality,
+    // unless a specific speciality is requested via query params.
 
     // Query param overrides (intersection)
     if (year) {
@@ -174,10 +175,10 @@ export class StudentService {
     const groupOk =
       !teacher.groups || teacher.groups.length === 0 || teacherGroupsNorm.includes(studentGroupNorm);
 
-    const specialityOk =
-      !teacher.specialities || teacher.specialities.length === 0 || teacher.specialities.includes(student.speciality);
+    // Removed specialityOk check because speciality names often differ (e.g., 'WEB' vs 'CS')
+    // and shouldn't block a teacher from accessing their assigned year/group students.
 
-    return yearOk && groupOk && specialityOk;
+    return yearOk && groupOk;
   }
 
   /**
