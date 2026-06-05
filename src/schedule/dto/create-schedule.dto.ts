@@ -27,10 +27,8 @@ export class CreateScheduleDto {
   @IsEnum(['cours', 'td', 'tp'], { message: 'type must be cours, td, or tp' })
   type: string;
 
-  @ApiProperty({ example: 'L2', enum: ['L1', 'L2', 'L3', 'M1', 'M2'] })
-  @IsEnum(['L1', 'L2', 'L3', 'M1', 'M2'], {
-    message: 'year must be L1, L2, L3, M1, or M2',
-  })
+  @ApiProperty({ example: 'L2' })
+  @IsString({ message: 'year must be a string' })
   year: string;
 
   @ApiProperty({
