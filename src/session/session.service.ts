@@ -131,7 +131,7 @@ export class SessionService {
     // Filter by speciality if the student has one
     if (student.speciality) {
       const currentAnd: Record<string, any>[] = Array.isArray(filter.$and)
-        ? filter.$and
+        ? (filter.$and as Record<string, any>[])
         : [];
       filter.$and = [
         ...currentAnd,

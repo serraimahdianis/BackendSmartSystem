@@ -42,9 +42,7 @@ export class ModuleService {
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       throw new NotFoundException(`Module with ID "${id}" not found`);
     }
-    const module = await this.moduleModel
-      .findById(id)
-      .exec();
+    const module = await this.moduleModel.findById(id).exec();
     if (!module) {
       throw new NotFoundException(`Module with ID "${id}" not found`);
     }
