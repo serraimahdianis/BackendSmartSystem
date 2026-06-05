@@ -100,8 +100,9 @@ export class AttendanceService {
       createAttendanceDto.method === 'MANUAL';
 
     if (!isTeacherInitiated) {
-      const cleanStr = (s?: string) => s ? s.toLowerCase().replace(/\s+/g, '') : '';
-      
+      const cleanStr = (s?: string) =>
+        s ? s.toLowerCase().replace(/\s+/g, '') : '';
+
       if (session.scheduleId) {
         const schedule = await this.scheduleModel
           .findById(session.scheduleId)

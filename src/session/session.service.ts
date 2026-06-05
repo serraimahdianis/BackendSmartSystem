@@ -11,6 +11,7 @@ import { Session, SessionDocument } from './schemas/session.schema';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { ScheduleService } from '../schedule/schedule.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventsGateway } from '../events/events.gateway';
 import { Student, StudentDocument } from '../student/schemas/student.schema';
 import {
@@ -380,6 +381,29 @@ export class SessionService {
     const result = await this.sessionModel.findByIdAndDelete(id).exec();
     if (!result) {
       throw new NotFoundException(`Session with ID "${id}" not found`);
+    }
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async autoEndSessions() {
+    const activeSessions = await this.sessionModel
+      .find({ status: 'active' })
+      .exec();
+    const now = new Date();
+
+    for (const session of activeSessions) {
+      if (!session.endTime || !session.date) continue;
+
+      const [endHour, endMinute] = session.endTime.split(':').map(Number);
+      const sessionEndDate = new Date(session.date);
+      sessionEndDate.setHours(endHour, endMinute, 0, 0);
+
+      if (now.getTime() >= sessionEndDate.getTime()) {
+        const oldStatus = session.status;
+        session.status = 'closed';
+        const saved = await session.save();
+        await this.handleSessionStatusTransition(saved, oldStatus, 'closed');
+      }
     }
   }
 }
