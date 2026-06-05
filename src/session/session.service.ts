@@ -113,18 +113,19 @@ export class SessionService {
 
     const filter: Record<string, any> = {};
 
-    // Must match the student's year
-    if (student.year) filter.year = student.year;
+    // Must match the student's year (case-insensitive)
+    if (student.year) {
+      filter.year = new RegExp(`^${student.year.trim()}$`, 'i');
+    }
 
     // For group-specific sessions (TD/TP), match group.
-    // For cours (lectures), group may be null/empty/"Whole Year" — those should be visible too.
-    // We use $or: either group matches the student's group, or group is empty/null (lecture for whole year)
+    // We use $or: either group matches the student's group, or group is empty/null/Whole Year
     if (student.group) {
       filter.$or = [
-        { group: student.group },
+        { group: new RegExp(`^${student.group.trim()}$`, 'i') },
         { group: null },
         { group: '' },
-        { group: 'Whole Year' },
+        { group: new RegExp('^whole year$', 'i') },
       ];
     }
 
@@ -137,7 +138,7 @@ export class SessionService {
         ...currentAnd,
         {
           $or: [
-            { speciality: student.speciality },
+            { speciality: new RegExp(`^${student.speciality.trim()}$`, 'i') },
             { speciality: null },
             { speciality: '' },
           ],

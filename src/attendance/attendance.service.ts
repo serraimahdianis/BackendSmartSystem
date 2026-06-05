@@ -418,6 +418,7 @@ export class AttendanceService {
 
     return {
       total,
+      totalSessions: total,
       totalPresent,
       totalAbsent,
       totalLate,

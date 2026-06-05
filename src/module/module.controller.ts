@@ -115,6 +115,21 @@ export class ModuleController {
     return this.moduleService.findOne(id);
   }
 
+    @Get('teacher/:id')
+  @Roles('admin', 'teacher', 'student')
+  @ApiOperation({
+    summary: 'Get modules by teacher (mock)',
+    description: 'Currently returns all modules to support dashboards.',
+  })
+  @ApiOkResponse({
+    description: 'List of all modules retrieved successfully',
+  })
+  findByTeacher(@Param('id') id: string, @Query('page') page?: number, @Query('limit') limit?: number) {
+    page = Number(page) || 1;
+    limit = Math.min(Number(limit) || 20, 100);
+    return this.moduleService.findAll(page, limit);
+  }
+
   @Patch(':id')
   @Roles('admin', 'teacher')
   @ApiOperation({
