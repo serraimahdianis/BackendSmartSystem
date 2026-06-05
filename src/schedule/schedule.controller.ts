@@ -41,13 +41,22 @@ export class ScheduleController {
 
   @Get()
   @Roles('admin', 'teacher', 'student')
-  @ApiOperation({ summary: 'Get all schedules (with teacher & module info)' })
-  @ApiResponse({ status: 200, description: 'List of all schedules' })
+  @ApiOperation({ summary: 'Get all schedules. Students only see schedules matching their year/group/speciality.' })
+  @ApiResponse({ status: 200, description: 'List of schedules' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
-  findAll(@Query('page') page?: number, @Query('limit') limit?: number) {
+  findAll(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Request() req?: { user: { userId: string; role: string } },
+  ) {
     page = Number(page) || 1;
     limit = Math.min(Number(limit) || 20, 100);
+
+    if (req?.user?.role === 'student') {
+      return this.scheduleService.findForStudent(req.user.userId, page, limit);
+    }
+
     return this.scheduleService.findAll(page, limit);
   }
 

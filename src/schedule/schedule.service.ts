@@ -6,6 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Schedule, ScheduleDocument } from './schemas/schedule.schema';
+import { Student, StudentDocument } from '../student/schemas/student.schema';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 
@@ -21,6 +22,7 @@ export interface PaginatedResult<T> {
 export class ScheduleService {
   constructor(
     @InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>,
+    @InjectModel(Student.name) private studentModel: Model<StudentDocument>,
   ) {}
 
   async create(createScheduleDto: CreateScheduleDto): Promise<Schedule> {
@@ -35,6 +37,57 @@ export class ScheduleService {
     const total = await this.scheduleModel.countDocuments().exec();
     const data = await this.scheduleModel
       .find()
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('teacherId', 'fullName email')
+      .populate('moduleId', 'name')
+      .exec();
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  /**
+   * Returns schedules matching a student's year/group/speciality.
+   * Lectures (group null/empty/"Whole Year") are always included.
+   */
+  async findForStudent(
+    studentId: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResult<Schedule>> {
+    const student = await this.studentModel.findById(studentId).exec();
+    if (!student) {
+      return { data: [], total: 0, page, limit, totalPages: 0 };
+    }
+
+    const filter: Record<string, any> = {};
+
+    if (student.year) filter.year = student.year;
+
+    if (student.group) {
+      filter.$or = [
+        { group: student.group },
+        { group: null },
+        { group: '' },
+        { group: 'Whole Year' },
+      ];
+    }
+
+    if (student.speciality) {
+      filter.$and = [
+        ...(filter.$and || []),
+        {
+          $or: [
+            { speciality: student.speciality },
+            { speciality: null },
+            { speciality: '' },
+          ],
+        },
+      ];
+    }
+
+    const total = await this.scheduleModel.countDocuments(filter).exec();
+    const data = await this.scheduleModel
+      .find(filter)
       .skip((page - 1) * limit)
       .limit(limit)
       .populate('teacherId', 'fullName email')

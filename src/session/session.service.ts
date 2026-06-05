@@ -71,9 +71,11 @@ export class SessionService {
   async findAll(
     page: number = 1,
     limit: number = 20,
+    status?: string,
   ): Promise<PaginatedResult<Session>> {
     const { startOfWeek, endOfWeek } = this.getThisWeekRange();
-    const filter = { date: { $gte: startOfWeek, $lte: endOfWeek } };
+    const filter: Record<string, any> = { date: { $gte: startOfWeek, $lte: endOfWeek } };
+    if (status) filter.status = status;
     const total = await this.sessionModel.countDocuments(filter).exec();
     const data = await this.sessionModel
       .find(filter)
@@ -83,6 +85,79 @@ export class SessionService {
       .populate('moduleId', 'name')
       .populate('scheduleId')
       .exec();
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  /**
+   * Returns sessions that match a student's year/group/speciality.
+   * Used when a student calls GET /sessions so they only see their own sessions.
+   */
+  async findForStudent(
+    studentId: string,
+    opts: { date?: string; status?: string; page?: number; limit?: number } = {},
+  ): Promise<PaginatedResult<Session>> {
+    const page = opts.page || 1;
+    const limit = opts.limit || 20;
+
+    const student = await this.studentModel.findById(studentId).exec();
+    if (!student) {
+      return { data: [], total: 0, page, limit, totalPages: 0 };
+    }
+
+    const filter: Record<string, any> = {};
+
+    // Must match the student's year
+    if (student.year) filter.year = student.year;
+
+    // For group-specific sessions (TD/TP), match group.
+    // For cours (lectures), group may be null/empty/"Whole Year" — those should be visible too.
+    // We use $or: either group matches the student's group, or group is empty/null (lecture for whole year)
+    if (student.group) {
+      filter.$or = [
+        { group: student.group },
+        { group: null },
+        { group: '' },
+        { group: 'Whole Year' },
+      ];
+    }
+
+    // Filter by speciality if the student has one
+    if (student.speciality) {
+      filter.$and = [
+        ...(filter.$and || []),
+        {
+          $or: [
+            { speciality: student.speciality },
+            { speciality: null },
+            { speciality: '' },
+          ],
+        },
+      ];
+    }
+
+    // Optional status filter (e.g. ?status=closed)
+    if (opts.status) filter.status = opts.status;
+
+    // Optional date filter
+    if (opts.date) {
+      const startOfDay = new Date(opts.date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(opts.date);
+      endOfDay.setHours(23, 59, 59, 999);
+      filter.date = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    const total = await this.sessionModel.countDocuments(filter).exec();
+    const data = await this.sessionModel
+      .find(filter)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('teacherId', 'fullName email')
+      .populate('moduleId', 'name year')
+      .populate('scheduleId', 'room dayOfWeek')
+      .sort({ date: -1 })
+      .exec();
+
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
@@ -125,13 +200,15 @@ export class SessionService {
     date: string,
     page: number = 1,
     limit: number = 20,
+    status?: string,
   ): Promise<PaginatedResult<Session>> {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const filter = { date: { $gte: startOfDay, $lte: endOfDay } };
+    const filter: Record<string, any> = { date: { $gte: startOfDay, $lte: endOfDay } };
+    if (status) filter.status = status;
     const total = await this.sessionModel.countDocuments(filter).exec();
     const data = await this.sessionModel
       .find(filter)

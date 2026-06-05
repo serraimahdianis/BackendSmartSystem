@@ -73,23 +73,31 @@ export class SessionController {
 
   @Get()
   @Roles('admin', 'teacher', 'student')
-  @ApiOperation({ summary: 'Get all sessions (optionally filter by date)' })
+  @ApiOperation({ summary: 'Get all sessions (optionally filter by date/status). Students only see their own sessions.' })
   @ApiResponse({ status: 200, description: 'List of sessions' })
   @ApiQuery({ name: 'date', required: false, example: '2026-04-28' })
+  @ApiQuery({ name: 'status', required: false, example: 'closed' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
   findAll(
     @Query('date') date?: string,
+    @Query('status') status?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Request() req?: { user: { userId: string; role: string } },
   ) {
     page = Number(page) || 1;
     limit = Math.min(Number(limit) || 20, 100);
 
-    if (date) {
-      return this.sessionService.findByDate(date, page, limit);
+    // Students only see sessions matching their year/group/speciality
+    if (req?.user?.role === 'student') {
+      return this.sessionService.findForStudent(req.user.userId, { date, status, page, limit });
     }
-    return this.sessionService.findAll(page, limit);
+
+    if (date) {
+      return this.sessionService.findByDate(date, page, limit, status);
+    }
+    return this.sessionService.findAll(page, limit, status);
   }
 
   @Get('teacher/:teacherId/today')
