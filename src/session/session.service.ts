@@ -382,6 +382,7 @@ export class SessionService {
       year: schedule.year,
       status: 'active',
       isReplacement: false,
+      room: schedule.room,
     });
 
     const saved = await createdSession.save();

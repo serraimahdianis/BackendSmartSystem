@@ -94,4 +94,9 @@ export class CreateSessionDto {
   @IsOptional()
   @IsString()
   reasonForReplacement?: string;
+
+  @ApiProperty({ example: 'Room A101', required: false })
+  @IsOptional()
+  @IsString()
+  room?: string;
 }

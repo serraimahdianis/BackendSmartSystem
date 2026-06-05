@@ -72,6 +72,10 @@ export class Session {
   @ApiProperty({ example: 'Teacher was sick on Sunday', required: false })
   @Prop()
   reasonForReplacement: string;
+
+  @ApiProperty({ example: 'Room A101', required: false })
+  @Prop({ default: null })
+  room: string;
 }
 
 export const SessionSchema = SchemaFactory.createForClass(Session);
