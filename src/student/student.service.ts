@@ -93,7 +93,19 @@ export class StudentService {
 
     // Base filter: must be in teacher's assigned arrays (if arrays are not empty)
     if (teacher.years?.length > 0) filter.year = { $in: teacher.years };
-    if (teacher.groups?.length > 0) filter.group = { $in: teacher.groups };
+
+    // Groups: normalize to handle "G01" vs "01" mismatch
+    // For each teacher group, generate regex patterns that match both formats
+    if (teacher.groups?.length > 0) {
+      const groupPatterns = teacher.groups.flatMap((g) => {
+        const numericPart = g.replace(/^[Gg]/, ''); // "G01" -> "01"
+        const withPrefix = `G${numericPart}`;       // "01" -> "G01"
+        return [g, numericPart, withPrefix];
+      });
+      const uniquePatterns = [...new Set(groupPatterns)];
+      filter.group = { $in: uniquePatterns };
+    }
+
     if (teacher.specialities?.length > 0)
       filter.speciality = { $in: teacher.specialities };
 
@@ -104,8 +116,12 @@ export class StudentService {
       else return { data: [], total: 0, page, limit, totalPages: 0 };
     }
     if (group) {
-      if (!teacher.groups?.length || teacher.groups.includes(group))
-        filter.group = group;
+      // Normalize the query param group too
+      const numericPart = group.replace(/^[Gg]/, '');
+      const withPrefix = `G${numericPart}`;
+      const teacherGroupNorm = teacher.groups?.map((g) => g.replace(/^[Gg]/, '')) ?? [];
+      if (!teacher.groups?.length || teacherGroupNorm.includes(numericPart))
+        filter.group = { $in: [group, numericPart, withPrefix] };
       else return { data: [], total: 0, page, limit, totalPages: 0 };
     }
     if (speciality) {
@@ -151,8 +167,13 @@ export class StudentService {
 
     const yearOk =
       !teacher.years || teacher.years.length === 0 || teacher.years.includes(student.year);
+    
+    // Normalize group comparison: "G01" should match "01" and vice versa
+    const studentGroupNorm = student.group?.replace(/^[Gg]/, '') ?? '';
+    const teacherGroupsNorm = (teacher.groups ?? []).map((g) => g.replace(/^[Gg]/, ''));
     const groupOk =
-      !teacher.groups || teacher.groups.length === 0 || teacher.groups.includes(student.group);
+      !teacher.groups || teacher.groups.length === 0 || teacherGroupsNorm.includes(studentGroupNorm);
+
     const specialityOk =
       !teacher.specialities || teacher.specialities.length === 0 || teacher.specialities.includes(student.speciality);
 
