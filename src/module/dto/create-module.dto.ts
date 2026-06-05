@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsMongoId, IsNotEmpty, IsString, IsEnum } from 'class-validator';
+import { IsMongoId, IsNotEmpty, IsString, IsEnum, IsOptional } from 'class-validator';
 
 export class CreateModuleDto {
   @ApiProperty({
@@ -18,20 +18,21 @@ export class CreateModuleDto {
     description:
       'Teacher ID (valid MongoDB ObjectId) who will be assigned to teach this module',
     type: 'string',
-    required: true,
+    required: false,
     format: 'ObjectId',
   })
+  @IsOptional()
   @IsMongoId()
-  teacherId: string;
+  teacherId?: string;
 
   @ApiProperty({
     example: 'L2',
     description:
       'Academic year level: L1 (First year License), L2 (Second year License), L3 (Third year License), M1 (First year Master), M2 (Second year Master)',
     enum: ['L1', 'L2', 'L3', 'M1', 'M2'],
-    required: true,
+    required: false,
   })
+  @IsOptional()
   @IsEnum(['L1', 'L2', 'L3', 'M1', 'M2'])
-  @IsNotEmpty()
-  year: string;
+  year?: string;
 }

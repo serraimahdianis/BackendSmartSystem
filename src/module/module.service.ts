@@ -58,9 +58,10 @@ export class ModuleService {
     page: number = 1,
     limit: number = 20,
   ): Promise<PaginatedResult<AcademicModule>> {
-    const total = await this.moduleModel.countDocuments({ teacherId }).exec();
+    const query = { $or: [{ teacherId }, { teacherId: null }, { teacherId: { $exists: false } }] };
+    const total = await this.moduleModel.countDocuments(query).exec();
     const data = await this.moduleModel
-      .find({ teacherId })
+      .find(query)
       .skip((page - 1) * limit)
       .limit(limit)
       .populate('teacherId', 'fullName email')

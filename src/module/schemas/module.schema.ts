@@ -11,12 +11,12 @@ export class AcademicModule {
   @Prop({ required: true })
   name: string;
 
-  @ApiProperty({ example: '60d5ec49f1b2c72b9c8e4a1a' })
-  @Prop({ type: Types.ObjectId, ref: Teacher.name, required: true })
+  @ApiProperty({ example: '60d5ec49f1b2c72b9c8e4a1a', required: false })
+  @Prop({ type: Types.ObjectId, ref: 'Teacher', default: null })
   teacherId: Types.ObjectId;
 
-  @ApiProperty({ example: 'L2' })
-  @Prop({ required: true })
+  @ApiProperty({ example: 'L2', required: false })
+  @Prop({ default: null })
   year: string;
 }
 
